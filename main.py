@@ -1,6 +1,7 @@
 from utils import utils
 from labels_first import labels_first
 from street_first import street_first
+import pickle
 
 LABELED_PATH = "./data/molewa_labels.csv"
 UNLABELED_PATH = "./data/molewa_street - bearbeitet.csv"
@@ -13,7 +14,7 @@ SPEED_THRESHOLD = 7
 
 TIME_THRESHOLD = 10
 
-MAPPING_PROCEDURE = "average"
+MAPPING_PROCEDURE = "most_frequent"
 
 VEHICLE_TYPE = "Car"
 
@@ -34,6 +35,8 @@ if LABELS_FIRST:
                                             vehicle_type_dict, 
                                             mapping_procedure=MAPPING_PROCEDURE, 
                                             vehicle_type=VEHICLE_TYPE)
+    with open(f"./built_datasets/labels_first/{RADIUS}radius_{MAPPING_PROCEDURE}mappingprocedure_{TIME_THRESHOLD}timethreshold_{VEHICLE_TYPE}vehicletype.pickle", "wb") as f:
+        pickle.dump(data_set, f)
 else:
     vehicle_type_dict = street_first.compute_vehicle_type_dict(df_labels, 
                                                                df_street, 
@@ -41,4 +44,6 @@ else:
                                                                lat_threshold=LAT_THRESHOLD, 
                                                                speed_threshold=SPEED_THRESHOLD,
                                                                radius=RADIUS)
-    data_set = street_first.create_data_set(df_street, vehicle_type_dict, vehicle_type=VEHICLE_TYPE)
+    data_set = street_first.create_data_set(df_street, vehicle_type_dict, mapping_procedure=MAPPING_PROCEDURE, vehicle_type=VEHICLE_TYPE)
+    with open(f"./built_datasets/street_first/{RADIUS}radius_{MAPPING_PROCEDURE}mappingprocedure_{VEHICLE_TYPE}vehicletype.pickle", "wb") as f:
+        pickle.dump(data_set, f)

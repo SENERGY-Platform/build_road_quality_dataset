@@ -36,13 +36,16 @@ def most_frequent(list):
     return max(set(list), key=list.count)
 
 
-def create_data_set(df_street, vehicle_type_dict, vehicle_type="Car"):
+def create_data_set(df_street, vehicle_type_dict, mapping_procedure, vehicle_type="Car"):
     data_set = []
     for i, labels in vehicle_type_dict[vehicle_type].items():
         if list(labels["label"]):
-            data_set.append({"vibrations": (df_street["vibration_x"].iloc[i], 
+            if mapping_procedure == "most_frequent":
+                data_set.append({"vibrations": (df_street["vibration_x"].iloc[i], 
                                         df_street["vibration_y"].iloc[i],
                                         df_street["vibration_z"].iloc[i]),
                              "label": most_frequent(list(labels["label"]))})
     print(data_set[:100])
     return data_set
+
+#TODO: Implement a reasonable condition on a maximal time gap between vibration-label pairs in the data set. (as is present in the labels first method)
