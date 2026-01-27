@@ -102,7 +102,8 @@ def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: 
     label_files = [f for f in os.listdir(read_dir_labels) if f.lower().endswith(".csv")]
     for f in sorted(label_files):
         print(f"joining {f} ...")
-        labels = pd.read_csv(os.path.join(read_dir_labels, f))[["lat", "lon", "label"]].dropna(subset=["label"])
+        label_cols = ["lat", "lon", "label", "smoothness", "surface", 'smoothness_score', 'surface_score']
+        labels = pd.read_csv(os.path.join(read_dir_labels, f))[label_cols].dropna(subset=["label"])
         out = streets.merge(labels, on=["lat", "lon"], how="left")
         out = out.dropna(subset=["label"])
         f = f.replace("labels", "dataset")
