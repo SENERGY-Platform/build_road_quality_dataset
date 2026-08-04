@@ -44,6 +44,12 @@ def compute_vehicle_type_dict(first_sort_dict, time_threshold=10):
 
 
 def create_data_set(df_labels, vehicle_type_dict, mapping_procedure="single", vehicle_type="Car"):
+    if mapping_procedure not in {"single", "average"}:
+        raise ValueError(
+            f"Unsupported labels_first mapping_procedure '{mapping_procedure}'. "
+            "Use 'single' or 'average'."
+        )
+
     data_set = []
     for i in vehicle_type_dict[vehicle_type].keys():
         if mapping_procedure == "single":
