@@ -1,3 +1,9 @@
+"""Build datasets from manually labeled road-quality points.
+
+Run this module as a script to generate both labels-first and street-first
+dataset variants from the configured CSV inputs.
+"""
+
 import os
 import pickle
 from dataclasses import dataclass
@@ -7,7 +13,7 @@ import pandas as pd
 
 import labels_first
 import street_first
-from utils import utils
+import utils
 
 
 @dataclass(frozen=False)
