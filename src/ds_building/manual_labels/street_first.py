@@ -15,7 +15,7 @@ def compute_first_sort_dict(df_labels, df_vehicle_street, lon_threshold=3e-05, l
             for index, row in first_sort_dict[i].iterrows():
                 if utils.compute_distance(row["lat"], row["lon"], df_vehicle_street["lat"][i], df_vehicle_street["lon"][i]).m > radius:
                     indices_far.append(index)
-            first_sort_dict[i].drop(indices_far)
+            first_sort_dict[i] = first_sort_dict[i].drop(indices_far)
             
     return first_sort_dict
 

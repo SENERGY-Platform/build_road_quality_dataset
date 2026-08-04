@@ -13,7 +13,7 @@ def compute_first_sort_dict(df_labels, df_street, lon_threshold=8e-05, lat_thres
         for index, row in first_sort_dict[i].iterrows():
             if utils.compute_distance(row["lat"], row["lon"], df_labels["lat"][i], df_labels["lon"][i]).m > radius:
                 indices_far.append(index)
-        first_sort_dict[i].drop(indices_far)
+        first_sort_dict[i] = first_sort_dict[i].drop(indices_far)
     print("First Sort Dict created!")
     return first_sort_dict
 
