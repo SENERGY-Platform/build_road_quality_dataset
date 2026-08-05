@@ -1,3 +1,9 @@
+"""Crawl raw OpenStreetMap data for street-measurement coordinates.
+
+When run as a script, this module reads street CSV coordinates, queries Overpass,
+and optionally saves successful raw payloads plus requested-point audit CSVs.
+"""
+
 import os
 from datetime import datetime
 import time
@@ -155,7 +161,7 @@ def crawl_api_data(
         dir_path: Directory containing input street CSV files.
         save_dir: Output directory used for deduping and persistence.
         api_radius_m: Overpass query radius (metres).
-        max_distance_m: Maximum acceptable distance for matching (passed through).
+        max_distance_m: Reserved for compatibility with downstream matching settings.
         batch_size: Number of points per request.
         timeout_s: Overpass timeout (seconds).
         nrows_per_file: Optional per-file read limit.
@@ -210,4 +216,3 @@ if __name__ == "__main__":
         _log("INFO", f"Wrote {len(df_labels)} rows to {out_csv}")
     else:
         _log("INFO", "No new labels created.")
-

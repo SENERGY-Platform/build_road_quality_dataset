@@ -1,7 +1,9 @@
+"""Input/output helpers for OpenStreetMap crawl data."""
+
 import json
 import os
 from datetime import datetime
-from typing import  Optional, Sequence, Set, Tuple
+from typing import Any, Optional, Sequence, Set, Tuple
 import pandas as pd
 
 def read_locations(
@@ -73,7 +75,14 @@ def read_new_locations(
     _log("INFO", f"{len(new_points)} of these locations are new.")
     return new_points
 
-def save_raw_data(save_dir, points_df, payload, batch, batch_idx, time):
+def save_raw_data(
+    save_dir: str,
+    points_df: pd.DataFrame,
+    payload: dict[str, Any],
+    batch: Sequence[Tuple[float, float]],
+    batch_idx: int,
+    time: datetime,
+) -> pd.DataFrame:
     """Persist an Overpass batch payload and update a CSV of requested points.
 
     Writes the raw API response (elements + batch points) as a JSON file under

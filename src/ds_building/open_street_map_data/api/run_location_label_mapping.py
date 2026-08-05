@@ -1,3 +1,10 @@
+"""Convert raw Overpass payloads into nearest-way location label CSVs.
+
+When run as a script, this module reads saved Overpass payload JSON files,
+selects the nearest relevant OSM way for each requested point, extracts
+`smoothness` and `surface` tags, and writes the label outputs.
+"""
+
 import json
 import math
 import os
@@ -8,7 +15,7 @@ from shapely.geometry import Point, LineString
 from shapely.ops import transform
 from pyproj import Transformer
 
-from open_street_map_data.api.parameter_settings import HIGHWAY_ALLOWED_CAR_STREETS
+from parameter_settings import HIGHWAY_ALLOWED_CAR_STREETS
 from parameter_settings import MAX_POINT_DISTANCE_M, CLOSEST_WAYS_MARGIN_M
 
 
@@ -57,7 +64,7 @@ def _delete_duplicate_elements(elements: List[Dict[str, Any]]) -> List[Dict[str,
         out.append(el)
     return out
 
-def create_location_label(point:dict, ways:list[tuple[float, dict]], batch_id:str, doc_path:str) -> tuple[float, dict] or None:
+def create_location_label(point:dict, ways:list[tuple[float, dict]], batch_id:str, doc_path:str) -> dict[str, Any] | None:
     """Create a single label record (smoothness/surface) for a point from candidate ways.
 
     Selects the closest way (or resolves ties) and returns a compact dict with the
@@ -101,7 +108,7 @@ def create_location_label(point:dict, ways:list[tuple[float, dict]], batch_id:st
         return formated
 
 
-def find_closest_elements(point:dict, batch_payload:list[dict], batch_id:str):
+def find_closest_elements(point:dict, batch_payload:list[dict], batch_id:str) -> list[tuple[float, dict]] | None:
     """Find the closest way elements in a batch payload to a given point.
 
     Filters payload items to `type == "way"` with geometry, computes point-to-polyline
@@ -117,7 +124,7 @@ def find_closest_elements(point:dict, batch_payload:list[dict], batch_id:str):
         List of (distance_m, way_dict) finalists, or None if no candidates exist.
     """
     # sub methods
-    def _get_way_dist_for_batch(lat, lon, batch_payload, batch_id):
+    def _get_way_dist_for_batch(lat: float, lon: float, batch_payload: list[dict], batch_id: str) -> list[tuple[float, dict]]:
         """Compute (distance_m, way) for each geometry-bearing way in the batch."""
         candidates = []
         for way in batch_payload:
@@ -130,7 +137,7 @@ def find_closest_elements(point:dict, batch_payload:list[dict], batch_id:str):
                 candidates.append((dist_m, way))
         return candidates
 
-    def _calc_finalists(candidates):
+    def _calc_finalists(candidates: list[tuple[float, dict]]) -> list[tuple[float, dict]] | None:
         """Return all candidates within `CLOSEST_WAYS_MARGIN_M` of the minimum distance."""
         if not candidates:
             return None
@@ -215,7 +222,7 @@ def _analyse_multiple_finalists(lat, lon,
     doc_df.to_csv(doc_save_path, index=False)
     return entry
 
-def filter_relevant_streets(api_elements: list):
+def filter_relevant_streets(api_elements: list) -> list[dict]:
     """Filter Overpass way elements to those with car-drivable `highway` tags.
 
     Uses `HIGHWAY_ALLOWED_CAR_STREETS` as an allow-list and prints batch statistics.
@@ -246,8 +253,13 @@ def filter_relevant_streets(api_elements: list):
           F"\n\tWAYS WITH HIGHWAY TAG: {without_highway_tag}")
     return relevant_streets
 
-def process_crawled_data_to_nearest_location_label_df(payload_path, save_file, duplicates_doc_file, num_files=None):
-    """Convert raw Overpass payload JSON files into a de-duplicated label CSV.
+def process_crawled_data_to_nearest_location_label_df(
+    payload_path: str,
+    save_file: str,
+    duplicates_doc_file: str,
+    num_files: int | None = None,
+) -> None:
+    """Convert raw Overpass payload JSON files into a deduplicated label CSV.
 
     For each batch JSON in `payload_path`, loads the requested points and returned
     OSM elements, filters to relevant streets, finds nearest ways, and writes
@@ -256,7 +268,7 @@ def process_crawled_data_to_nearest_location_label_df(payload_path, save_file, d
 
     Args:
         payload_path: Directory containing saved batch payload JSON files.
-        save_file: Output CSV path for labelled locations.
+        save_file: Output CSV path for labeled locations.
         duplicates_doc_file: CSV path used to log tie-resolution metadata.
         num_files: Optional limit on the number of JSON files processed.
 
@@ -308,14 +320,6 @@ def process_crawled_data_to_nearest_location_label_df(payload_path, save_file, d
             print(f"BATCH SUMMARY: added {len(rows)} labeled locations, and threw away {len(thrown_points)} points. ")
             print(f"Thrown: {thrown_points}", )
             print("-----------------------------------------------------------------------------------------------------")
-
-
-# Solved: next check if api request is working properly for multiple points or if we need to request each singulary - yes works
-# Solved: check if nearest distance function is actually comparing properly -> is a curved instead of point comparision? yes curved polyline is better
-# Solved: Write red list for specific highway types to filter out (ie. walking paths)
-# Solved: Write treating function for duplicated labels for priority
-# Solved: Update Logs
-# Solved: Let it run completely
 
 labels_dir = "data/open_street_map/labels"
 payload_dir = f'{labels_dir}/0_raw_api_data/payloads'

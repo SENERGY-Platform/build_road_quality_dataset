@@ -1,3 +1,5 @@
+"""Configuration constants for OpenStreetMap crawling and label mapping."""
+
 # settings
 # api
 EARTH_RADIUS_M = 6371000.0

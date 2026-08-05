@@ -1,6 +1,8 @@
+"""Scenario constants and OSM tag-to-road-quality label mappings."""
+
 
 # PROBLEM: No actual clear compatibility between OSM labels (smoothness & surface) and our Street labels (good | medium | bad)
-# GOAL: Provide different mappings of these OMS labels to Street labels with different data sets
+# GOAL: Provide different mappings of these OSM labels to Street labels with different data sets
 # GOAL FORMAT PER DATASET:
     # timestamp | lat | lon | label | VehicleType | speed | rawVib | MildScore | StandardScore | StrictScore | ...
 

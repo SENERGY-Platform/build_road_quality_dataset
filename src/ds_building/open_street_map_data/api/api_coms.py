@@ -1,3 +1,5 @@
+"""Overpass API request helpers for fetching OpenStreetMap way tags."""
+
 from datetime import datetime
 import time
 import random
@@ -132,7 +134,7 @@ def request_api_labels_multi(
     timeout_s: int = 90,
     include_surface_features: bool = False,
 ) -> Dict[str, Any]:
-    """Fetch nearby OSM ways for many points for many points in a single Overpass request.
+    """Fetch nearby OSM ways for many points in a single Overpass request.
 
     Builds a query that, for each (lon, lat), requests ways within `radius_m`.
     By default, it queries `highway=*` ways (which still returns surface/smoothness

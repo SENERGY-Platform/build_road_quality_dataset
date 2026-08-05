@@ -1,6 +1,7 @@
+"""Calculate numeric road-quality scores from OSM smoothness tags."""
+
 import pandas as pd
-from open_street_map_data.datasets.mapping_strategy import SMOOTHNESS_SCENARIOS, SMOOTHNESS_TO_LABEL_1, \
-    SMOOTHNESS_TO_LABEL_2
+from mapping_strategy import SMOOTHNESS_SCENARIOS, SMOOTHNESS_TO_LABEL_1, SMOOTHNESS_TO_LABEL_2
 
 def print_stats(df: pd.DataFrame, scenario:str) -> None:
     """Print basic mapping coverage stats for the `smoothness` -> numeric label mapping.

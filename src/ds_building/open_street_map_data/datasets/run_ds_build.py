@@ -1,10 +1,18 @@
+"""Build OSM-derived label scenarios and join them to street measurements.
+
+When run as a script, this module maps nearest-way OSM labels into every
+configured numeric scenario, saves those scenario CSVs, and writes joined street
+datasets for training.
+"""
+
 import os
+from collections.abc import Iterator
 
 import pandas as pd
 
-from open_street_map_data.datasets.combination_mappings import calc_save_combination_scenarios
-from open_street_map_data.datasets.smoothness_mappings import calc_smoothness_scenarios
-from open_street_map_data.datasets.surface_mappings import calc_surface_scenarios
+from combination_mappings import calc_save_combination_scenarios
+from smoothness_mappings import calc_smoothness_scenarios
+from surface_mappings import calc_surface_scenarios
 
 
 def clean_labeled_locations(df: pd.DataFrame) -> pd.DataFrame:
@@ -33,7 +41,10 @@ def clean_labeled_locations(df: pd.DataFrame) -> pd.DataFrame:
     print(f"Cleaned labeled locations: start={n0} | dropped_missing={d1} | dropped_dupes={d2} | end={len(df)}")
     return df
 
-def sm_surf_variations(sm_score_columns:dict[str, pd.Series], surf_score_columns:dict[str, list[pd.Series]]):
+def sm_surf_variations(
+    sm_score_columns:dict[str, pd.Series],
+    surf_score_columns:dict[str, list[pd.Series]],
+) -> Iterator[tuple[str, str, pd.Series, list[pd.Series]]]:
     """Yield all smoothness/surface scenario combinations with their score columns.
 
     Args:
@@ -47,15 +58,15 @@ def sm_surf_variations(sm_score_columns:dict[str, pd.Series], surf_score_columns
         for surf_scenario, surf_col in surf_score_columns.items():
             yield sm_scenario, surf_scenario, sm_col, surf_col
 
-def build_mapped_labels(labeled_location_file:str, ds_save_dir:str, rows=None):
+def build_mapped_labels(labeled_location_file:str, ds_save_dir:str, rows: int | None = None) -> None:
     """Compute and save all mapped label combination scenarios for a label CSV.
 
-    Loads labelled locations from `labeled_location_file`, cleans them, computes all
+    Loads labeled locations from `labeled_location_file`, cleans them, computes all
     configured smoothness and surface score scenarios, then writes each configured
     combination scenario output under `ds_save_dir`.
 
     Args:
-        labeled_location_file: CSV path containing labelled locations.
+        labeled_location_file: CSV path containing labeled locations.
         ds_save_dir: Output directory for scenario CSVs.
         rows: Optional row limit for quicker runs.
 

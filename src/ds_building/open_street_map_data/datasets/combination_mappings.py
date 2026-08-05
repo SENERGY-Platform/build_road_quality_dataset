@@ -1,8 +1,10 @@
+"""Combine smoothness and surface scores into final label scenarios."""
+
 import os
 from typing import Callable, final
 import pandas as pd
 
-from open_street_map_data.datasets.mapping_strategy import COMBINATION_SCENARIOS
+from mapping_strategy import COMBINATION_SCENARIOS
 ChooseFn = Callable[[pd.Series, pd.Series], pd.Series]
 
 
@@ -19,7 +21,7 @@ def calc_prio_case(
 
     Args:
         prio: Which score to prioritise ("smoothness" or "surface").
-        labeled_locations_df: Base labelled locations DataFrame.
+        labeled_locations_df: Base labeled locations DataFrame.
         sm_score_column: Smoothness numeric score Series.
         surf_score_columns: One or more surface numeric score Series.
 
@@ -47,7 +49,7 @@ def calc_avg_case(
     available score.
 
     Args:
-        labeled_locations_df: Base labelled locations DataFrame.
+        labeled_locations_df: Base labeled locations DataFrame.
         sm_score_column: Smoothness numeric score Series.
         surf_score_columns: One or more surface numeric score Series.
 
