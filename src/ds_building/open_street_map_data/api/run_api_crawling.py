@@ -197,8 +197,8 @@ def crawl_api_data(
 
 
 if __name__ == "__main__":
-    street_raw_path = "data/street_data/raw"
-    osm_labels_raw = "data/open_street_map/labels/0_raw_api_data"
+    street_raw_path = "data/molewa/raw"
+    osm_labels_raw = "data/open_street_map/label_steps/raw_api_data"
 
     df_labels = crawl_api_data(
         street_raw_path,

@@ -25,7 +25,7 @@ class ManualLabelsConfig:
     output_dir: str
 
     mapping_type: str = 'labels_first' # 'labels_first'/'street_first'
-    mapping_procedure: str = "average" # "single", "average", "most_frequent"
+    mapping_procedure: str = "average" # "single", "average", "mostfrequent"
     vehicle_type: str = "Car"
 
     lon_threshold: float = 8e-05
@@ -36,7 +36,7 @@ class ManualLabelsConfig:
 
 
 LABELS_FIRST_MAPPING_PROCEDURES = ("single", "average")
-STREET_FIRST_MAPPING_PROCEDURES = ("most_frequent",)
+STREET_FIRST_MAPPING_PROCEDURES = ("mostfrequent",)
 
 
 def build_labels_first_dataset(
@@ -100,9 +100,10 @@ def output_path_for_config(config: ManualLabelsConfig) -> str:
     else:
         subdir = "street_first"
         filename = (
-            f"{config.radius}Radius_"
-            f"{config.mapping_procedure}Mappingprocedure_"
-            f"{config.vehicle_type}Vehicletype"
+            f"manual_dataset_"
+            f"radius{config.radius}"
+            f"mappingprocedure{config.mapping_procedure}"
+            f"vehicletype{config.vehicle_type}"
         )
 
     output_dir = os.path.join(config.output_dir, subdir)
@@ -112,9 +113,10 @@ def output_path_for_config(config: ManualLabelsConfig) -> str:
 
 def save_dataset(data_set: list[dict[str, Any]], file_path: str) -> None:
     """Save a dataset to matching pickle and CSV files."""
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(f"{file_path}.pickle", "wb") as f:
         pickle.dump(data_set, f)
-    pd.DataFrame(data_set).to_csv(f"{file_path}.csv", index=False)
+    #pd.DataFrame(data_set).to_csv(f"{file_path}.csv", index=False)
 
 
 def validate_config(config: ManualLabelsConfig) -> None:
@@ -155,21 +157,21 @@ def run_pipeline(config: ManualLabelsConfig) -> str:
 def main() -> None:
     """Create the config, run the manual-label pipeline, and save outputs."""
     config = ManualLabelsConfig(
-        labels_path = "data/street_data/labels/molewa_labels.csv",
-        street_path = "data/street_data/raw/molewa_street - bearbeitet.csv",
-        output_dir = "data/street_data/datasets",
+        labels_path = "data/molewa/labels/molewa_labels.csv",
+        street_path = "data/molewa/raw/molewa_street - bearbeitet.csv",
+        output_dir = "data/molewa/datasets",
     )
     configs_combinations = [
         ('labels_first', 'single'),
         ('labels_first', 'average'),
-        ('street_first', 'most_frequent'),
+        ('street_first', 'mostfrequent'),
     ]
     for mapping_type, mapping_procedure in configs_combinations:
         print(f"Starting pipeline for mapping_type: {mapping_type}, and procedure: {mapping_procedure}.")
         config.mapping_type = mapping_type
         config.mapping_procedure = mapping_procedure
         output_path = run_pipeline(config)
-        print(f"Saved dataset to {output_path}.pickle and {output_path}.csv")
+        print(f"Saved dataset to {output_path}.pickle")
 
 if __name__ == "__main__":
     main()

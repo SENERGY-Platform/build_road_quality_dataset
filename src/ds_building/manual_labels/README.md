@@ -5,8 +5,8 @@ road-quality points with nearby street sensor measurements.
 
 ## Inputs
 
-- Manual labels: `data/street_data/labels/molewa_labels.csv`
-- Street measurements: `data/street_data/raw/molewa_street - bearbeitet.csv`
+- Manual labels: `data/molewa/labels/molewa_labels.csv`
+- Street measurements: `data/molewa/raw/molewa_street - bearbeitet.csv`
 
 Both files are loaded with `utils.load_data`, so they must include a `timestamp`
 column parseable by pandas using ISO8601 format. The matching steps also expect
@@ -35,7 +35,7 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
 - `output_dir`: root output directory.
 - `mapping_type`: `labels_first` or `street_first`.
 - `mapping_procedure`: `single` or `average` for `labels_first`;
-  `most_frequent` for `street_first`.
+  `mostfrequent` for `street_first`.
 - `vehicle_type`: vehicle type to include in the final dataset.
 - `lon_threshold` and `lat_threshold`: coarse coordinate filters before distance
   calculation.
@@ -54,12 +54,12 @@ python src/ds_building/manual_labels/run_manual_ds_build.py
 
 The script currently iterates over the configured mapping combinations:
 
-- labels input: `data/street_data/labels/molewa_labels.csv`
-- street input: `data/street_data/raw/molewa_street - bearbeitet.csv`
-- output directory: `data/street_data/datasets`
+- labels input: `data/molewa/labels/molewa_labels.csv`
+- street input: `data/molewa/raw/molewa_street - bearbeitet.csv`
+- output directory: `data/molewa/datasets`
 - `labels_first` with `single`
 - `labels_first` with `average`
-- `street_first` with `most_frequent`
+- `street_first` with `mostfrequent`
 - vehicle type: `Car`
 
 To change a run, edit the config object created in `run_manual_ds_build.py`:
@@ -67,7 +67,7 @@ To change a run, edit the config object created in `run_manual_ds_build.py`:
 ```python
 config = ManualLabelsConfig(
     mapping_type="street_first",
-    mapping_procedure="most_frequent",
+    mapping_procedure="mostfrequent",
 )
 ```
 
@@ -75,14 +75,14 @@ Supported mapping values:
 
 - `mapping_type="labels_first"` supports `mapping_procedure="single"` and
   `mapping_procedure="average"`.
-- `mapping_type="street_first"` supports `mapping_procedure="most_frequent"`.
+- `mapping_type="street_first"` supports `mapping_procedure="mostfrequent"`.
 
 ## Outputs
 
-The script writes both pickle and CSV outputs under:
+The script writes pickle outputs under:
 
-- `data/street_data/datasets/labels_first/`
-- `data/street_data/datasets/street_first/`
+- `data/molewa/datasets/labels_first/`
+- `data/molewa/datasets/street_first/`
 
 Output filenames encode the selected radius, mapping procedure, time threshold
 where applicable, and vehicle type.
@@ -105,7 +105,7 @@ The vibration axes, speed, longitude, and latitude are arithmetic means of the
 matched street rows. The timestamp is the mean timestamp of the matched street
 rows.
 
-For `street_first` with `most_frequent`, each matching street measurement
+For `street_first` with `mostfrequent`, each matching street measurement
 becomes one output row. Sensor values, speed, location, and timestamp are copied
 from that street row, while `label` is the most frequent nearby manual label.
 

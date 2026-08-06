@@ -160,10 +160,10 @@ def calc_save_combination_scenarios(
     surf_score_columns: list[pd.Series],
     save_dir: str,
 ) -> None:
-    """Compute all combination scenarios and save each as a CSV under `save_dir`."""
+    """Compute all combination scenarios and save each as a parquet under `save_dir`."""
     os.makedirs(save_dir, exist_ok=True)
 
     for case_id in COMBINATION_SCENARIOS:
         case_df = calc_scenario(case_id, df, sm_scenario, surf_scenario, sm_score_column, surf_score_columns)
-        file_path = os.path.join(save_dir, f"osm_labels_{sm_scenario}_{surf_scenario}_{case_id}.csv")
-        case_df.to_csv(file_path, index=False)
+        file_path = os.path.join(save_dir, f"osm_labels_{sm_scenario}_{surf_scenario}_{case_id}.parquet")
+        case_df.to_parquet(file_path, index=False)

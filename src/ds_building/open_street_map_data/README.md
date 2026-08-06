@@ -12,9 +12,9 @@ The pipeline has three stages:
 
 ## Inputs
 
-- Street measurements: `data/street_data/raw/`
-- Raw Overpass payloads: `data/open_street_map/labels/0_raw_api_data/payloads/`
-- Labelled OSM locations: `data/open_street_map/labels/1_labeled_location_data/labeled_locations.csv`
+- Street measurements: `data/molewa/raw/`
+- Raw Overpass payloads: `data/open_street_map/label_steps/raw_api_data/payloads/`
+- Labelled OSM locations: `data/open_street_map/label_steps/labeled_location_data/labeled_locations.parquet`
 
 The street CSVs must contain `lat` and `lon` columns. Dataset joining also expects
 the sensor-measurement columns that should be retained in the final training data.
@@ -42,8 +42,8 @@ Important settings are in `api/run_api_crawling.py` and
 
 Outputs:
 
-- `data/open_street_map/labels/0_raw_api_data/payloads/*.json`
-- `data/open_street_map/labels/0_raw_api_data/requested_points/*.csv`
+- `data/open_street_map/label_steps/raw_api_data/payloads/*.json`
+- `data/open_street_map/label_steps/raw_api_data/requested_points/*.csv`
 
 ## Stage 2: Build Location Labels
 
@@ -55,7 +55,7 @@ PYTHONPATH=src/ds_building:src/ds_building/open_street_map_data/api python src/d
 
 This stage filters Overpass elements to car-drivable ways, computes the nearest
 road geometry for each requested point, extracts `smoothness` and `surface`, and
-writes a deduplicated location-label CSV.
+writes a deduplicated location-label parquet file.
 
 Important settings:
 
@@ -66,8 +66,8 @@ Important settings:
 
 Outputs:
 
-- `data/open_street_map/labels/1_labeled_location_data/labeled_locations.csv`
-- `data/open_street_map/labels/1_labeled_location_data/duplicates.csv`
+- `data/open_street_map/label_steps/labeled_location_data/labeled_locations.parquet`
+- `data/open_street_map/label_steps/labeled_location_data/duplicates.csv`
 
 ## Stage 3: Build Dataset Scenarios
 
@@ -79,8 +79,7 @@ PYTHONPATH=src/ds_building python src/ds_building/open_street_map_data/datasets/
 
 This stage maps OSM labels into numeric road-quality labels using all configured
 smoothness, surface, and combination scenarios, then joins each label scenario
-onto the street-measurement CSVs. The current script processes up to 20,000
-location-label rows per run.
+onto the street-measurement CSVs.
 
 Scenario definitions live in `datasets/mapping_strategy.py`:
 
@@ -90,10 +89,10 @@ Scenario definitions live in `datasets/mapping_strategy.py`:
 
 Outputs:
 
-- Mapped label scenario CSVs:
-  `data/open_street_map/labels/2_mapped_labels/osm_labels_*.csv`
+- Mapped label scenario parquet files:
+  `data/open_street_map/label_steps/mapped_labels/osm_labels_*.parquet`
 - Joined street datasets:
-  `data/open_street_map/datasets/osm_dataset_*.csv`
+  `data/open_street_map/datasets/osm_dataset_*.parquet`
 
 ## Files
 

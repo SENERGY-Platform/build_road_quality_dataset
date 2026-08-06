@@ -268,7 +268,7 @@ def process_crawled_data_to_nearest_location_label_df(
 
     Args:
         payload_path: Directory containing saved batch payload JSON files.
-        save_file: Output CSV path for labeled locations.
+        save_file: Output parquet path for labeled locations.
         duplicates_doc_file: CSV path used to log tie-resolution metadata.
         num_files: Optional limit on the number of JSON files processed.
 
@@ -314,17 +314,17 @@ def process_crawled_data_to_nearest_location_label_df(
                 ignore_index=True
             )
             labeled_locations_df = labeled_locations_df.drop_duplicates(subset=['lat', 'lon'], keep='last')
-            labeled_locations_df.to_csv(save_file, index=False)
+            labeled_locations_df.to_parquet(save_file, index=False)
         else:
             print("-----------------------------------------------------------------------------------------------------")
             print(f"BATCH SUMMARY: added {len(rows)} labeled locations, and threw away {len(thrown_points)} points. ")
             print(f"Thrown: {thrown_points}", )
             print("-----------------------------------------------------------------------------------------------------")
 
-labels_dir = "data/open_street_map/labels"
-payload_dir = f'{labels_dir}/0_raw_api_data/payloads'
-labeled_location_dir = f'{labels_dir}/1_labeled_location_data'
-save_file = f'{labeled_location_dir}/labeled_locations.csv'
+labels_dir = "data/open_street_map/label_steps"
+payload_dir = f'{labels_dir}/raw_api_data/payloads'
+labeled_location_dir = f'{labels_dir}/labeled_location_data'
+save_file = f'{labeled_location_dir}/labeled_locations.parquet'
 duplicates_doc_file= f'{labeled_location_dir}/duplicates.csv'
 os.makedirs(labeled_location_dir, exist_ok=True)
 process_crawled_data_to_nearest_location_label_df(payload_dir, save_file, duplicates_doc_file, num_files=None)

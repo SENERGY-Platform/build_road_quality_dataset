@@ -58,22 +58,21 @@ def sm_surf_variations(
         for surf_scenario, surf_col in surf_score_columns.items():
             yield sm_scenario, surf_scenario, sm_col, surf_col
 
-def build_mapped_labels(labeled_location_file:str, ds_save_dir:str, rows: int | None = None) -> None:
-    """Compute and save all mapped label combination scenarios for a label CSV.
+def build_mapped_labels(labeled_location_file:str, ds_save_dir:str) -> None:
+    """Compute and save all mapped label combination scenarios for a label parquet.
 
     Loads labeled locations from `labeled_location_file`, cleans them, computes all
     configured smoothness and surface score scenarios, then writes each configured
     combination scenario output under `ds_save_dir`.
 
     Args:
-        labeled_location_file: CSV path containing labeled locations.
-        ds_save_dir: Output directory for scenario CSVs.
-        rows: Optional row limit for quicker runs.
+        labeled_location_file: Parquet path containing labeled locations.
+        ds_save_dir: Output directory for scenario parquet files.
 
     Returns:
         None.
     """
-    labeled_locations = pd.read_csv(labeled_location_file, header=0, nrows=rows)
+    labeled_locations = pd.read_parquet(labeled_location_file)
     labeled_locations = clean_labeled_locations(labeled_locations)
 
     sm_score_columns = calc_smoothness_scenarios(labeled_locations)
@@ -91,11 +90,11 @@ def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: 
     """Join per-file label datasets onto a combined street dataset and save per label file.
 
     Concatenates all street CSV files in `read_dir_street` into one DataFrame, then
-    for each label CSV in `read_dir_labels` performs a left join on (`lat`, `lon`).
+    for each label parquet in `read_dir_labels` performs a left join on (`lat`, `lon`).
     Rows with missing labels are dropped and the result is saved to `out_dir`.
 
     Args:
-        read_dir_labels: Directory containing label CSV files (expects `lat`, `lon`, `label`).
+        read_dir_labels: Directory containing label parquet files (expects `lat`, `lon`, `label`).
         read_dir_street: Directory containing street CSV files.
         out_dir: Output directory for joined datasets.
 
@@ -110,20 +109,20 @@ def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: 
         ignore_index=True,
     )
 
-    label_files = [f for f in os.listdir(read_dir_labels) if f.lower().endswith(".csv")]
+    label_files = [f for f in os.listdir(read_dir_labels) if f.lower().endswith(".parquet")]
     for f in sorted(label_files):
         print(f"joining {f} ...")
         label_cols = ["lat", "lon", "label", "smoothness", "surface", 'smoothness_score', 'surface_score']
-        labels = pd.read_csv(os.path.join(read_dir_labels, f))[label_cols].dropna(subset=["label"])
+        labels = pd.read_parquet(os.path.join(read_dir_labels, f))[label_cols].dropna(subset=["label"])
         out = streets.merge(labels, on=["lat", "lon"], how="left")
         out = out.dropna(subset=["label"])
         f = f.replace("labels", "dataset")
-        out.to_csv(os.path.join(out_dir, f), index=False)
+        out.to_parquet(os.path.join(out_dir, f), index=False)
 
-labeled_location_file = f'data/open_street_map/labels/1_labeled_location_data/labeled_locations.csv'
-labels_save_dir = f'data/open_street_map/labels/2_mapped_labels'
-build_mapped_labels(labeled_location_file, labels_save_dir, rows=20000)
+labeled_location_file = f'data/open_street_map/label_steps/labeled_location_data/labeled_locations.parquet'
+labels_save_dir = f'data/open_street_map/label_steps/mapped_labels'
+build_mapped_labels(labeled_location_file, labels_save_dir)
 
-street_read_dir = 'data/street_data/raw'
+street_read_dir = 'data/molewa/raw'
 osm_save_dir = 'data/open_street_map/datasets'
 join_labels_to_streets(labels_save_dir, street_read_dir, osm_save_dir)
