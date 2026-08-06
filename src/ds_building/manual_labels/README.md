@@ -87,6 +87,28 @@ The script writes both pickle and CSV outputs under:
 Output filenames encode the selected radius, mapping procedure, time threshold
 where applicable, and vehicle type.
 
+Each output row uses the same flat schema across all supported mapping
+procedures:
+
+- `vibration_x`, `vibration_y`, `vibration_z`: sensor vibration values.
+- `speed`: street-measurement speed.
+- `label`: manual road-quality label.
+- `lon`, `lat`: street-measurement location.
+- `timestamp`: street-measurement timestamp.
+
+For `labels_first` with `single`, each matching street measurement becomes one
+output row, so `speed`, `lon`, `lat`, and `timestamp` are copied directly from
+that street row.
+
+For `labels_first` with `average`, each manual label produces one output row.
+The vibration axes, speed, longitude, and latitude are arithmetic means of the
+matched street rows. The timestamp is the mean timestamp of the matched street
+rows.
+
+For `street_first` with `most_frequent`, each matching street measurement
+becomes one output row. Sensor values, speed, location, and timestamp are copied
+from that street row, while `label` is the most frequent nearby manual label.
+
 ## Files
 
 - `run_manual_ds_build.py`: configures paths, thresholds, mode selection, and

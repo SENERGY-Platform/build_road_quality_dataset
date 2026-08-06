@@ -125,16 +125,24 @@ def create_data_set(
         vehicle_type: Vehicle type to extract from `vehicle_type_dict`.
 
     Returns:
-        List of dicts with `vibrations` tuples and assigned `label` values.
+        List of dicts with flat `vibration_x`, `vibration_y`, `vibration_z`,
+        `speed`, `label`, `lon`, `lat`, and `timestamp` fields.
     """
     data_set = []
     for i, labels in vehicle_type_dict[vehicle_type].items():
         if list(labels["label"]):
             if mapping_procedure == "most_frequent":
-                data_set.append({"vibrations": (df_street["vibration_x"].iloc[i], 
-                                        df_street["vibration_y"].iloc[i],
-                                        df_street["vibration_z"].iloc[i]),
-                             "label": most_frequent(list(labels["label"]))})
+                street_row = df_street.loc[i]
+                data_set.append({"vibration_x": street_row["vibration_x"],
+                                "vibration_y": street_row["vibration_y"],
+                                "vibration_z": street_row["vibration_z"],
+                                "speed": street_row["speed"],
+                                "label": most_frequent(list(labels["label"])),
+                                "lon": street_row["lon"],
+                                "lat": street_row["lat"],
+                                "timestamp": street_row["timestamp"]
+                                 }
+                )
     print(data_set[:100])
     return data_set
 

@@ -109,18 +109,20 @@ def create_data_set(
     mapping_procedure: str = "single",
     vehicle_type: str = "Car",
 ) -> list[dict[str, Any]]:
-    """Create vibration/label examples from manually labeled points.
+    """Create labeled street-measurement examples from manually labeled points.
 
     Args:
         df_labels: DataFrame of manual labels containing a `label` column.
         vehicle_type_dict: Nested vehicle type mapping returned by
             `compute_vehicle_type_dict`.
         mapping_procedure: `single` to create one example per street row, or
-            `average` to average vibrations for each label point.
+            `average` to average vibration, speed, location, and timestamp values
+            for each label point.
         vehicle_type: Vehicle type to extract from `vehicle_type_dict`.
 
     Returns:
-        List of dicts with `vibrations` tuples and manual `label` values.
+        List of dicts with flat `vibration_x`, `vibration_y`, `vibration_z`,
+        `speed`, `label`, `lon`, `lat`, and `timestamp` fields.
 
     Raises:
         ValueError: If `mapping_procedure` is not `single` or `average`.
@@ -133,15 +135,27 @@ def create_data_set(
 
     data_set = []
     for i in vehicle_type_dict[vehicle_type].keys():
+        street_rows = vehicle_type_dict[vehicle_type][i]
         if mapping_procedure == "single":
-            for _, entry in vehicle_type_dict[vehicle_type][i].iterrows():
-                data_set.append({"vibrations": (entry["vibration_x"], entry["vibration_y"], entry["vibration_z"]), 
-                                 "label": df_labels["label"].iloc[i]})
+            for _, entry in street_rows.iterrows():
+                data_set.append({"vibration_x": entry["vibration_x"],
+                                 "vibration_y": entry["vibration_y"],
+                                 "vibration_z": entry["vibration_z"],
+                                 "speed": entry["speed"],
+                                 "label": df_labels["label"].iloc[i],
+                                 "lon": entry["lon"],
+                                 "lat": entry["lat"],
+                                 "timestamp": entry["timestamp"],})
         elif mapping_procedure == "average":
-            data_set.append({"vibrations": (np.mean([entry["vibration_x"] for _, entry in vehicle_type_dict[vehicle_type][i].iterrows()]),
-                                            np.mean([entry["vibration_y"] for _, entry in vehicle_type_dict[vehicle_type][i].iterrows()]),
-                                            np.mean([entry["vibration_z"] for _, entry in vehicle_type_dict[vehicle_type][i].iterrows()])),
-                            "label": df_labels["label"].iloc[i]})
+            data_set.append({"vibration_x": street_rows["vibration_x"].mean(),
+                            "vibration_y": street_rows["vibration_y"].mean(),
+                            "vibration_z": street_rows["vibration_z"].mean(),
+                            "speed": street_rows["speed"].mean(),
+                            "label": df_labels["label"].iloc[i],
+                            "lon": street_rows["lon"].mean(),
+                            "lat": street_rows["lat"].mean(),
+                            "timestamp": street_rows["timestamp"].mean(),}
+            )
             
     print("Data set created!")
     print(data_set[:300])       
