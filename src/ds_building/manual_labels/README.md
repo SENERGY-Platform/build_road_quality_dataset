@@ -79,13 +79,13 @@ Supported mapping values:
 
 ## Outputs
 
-The script writes pickle outputs under:
+The script writes parquet outputs under:
 
 - `data/molewa/datasets/labels_first/`
 - `data/molewa/datasets/street_first/`
 
 Output filenames encode the selected radius, mapping procedure, time threshold
-where applicable, and vehicle type.
+where applicable, and vehicle type, using the `.parquet` extension.
 
 Each output row uses the same flat schema across all supported mapping
 procedures:

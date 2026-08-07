@@ -5,7 +5,6 @@ dataset variants from the configured CSV inputs.
 """
 
 import os
-import pickle
 from dataclasses import dataclass
 from typing import Any
 
@@ -92,17 +91,18 @@ def output_path_for_config(config: ManualLabelsConfig) -> str:
     if config.mapping_type == "labels_first":
         subdir = "labels_first"
         filename = (
-            f"{config.radius}radius_"
-            f"{config.mapping_procedure}mappingprocedure_"
-            f"{config.time_threshold}timethreshold_"
-            f"{config.vehicle_type}vehicletype"
+            f"manual_dataset_"
+            f"radius{config.radius}_"
+            f"mappingprocedure{config.mapping_procedure}_"
+            f"timethreshold{config.time_threshold}_"
+            f"vehicletype{config.vehicle_type}"
         )
     else:
         subdir = "street_first"
         filename = (
             f"manual_dataset_"
-            f"radius{config.radius}"
-            f"mappingprocedure{config.mapping_procedure}"
+            f"radius{config.radius}_"
+            f"mappingprocedure{config.mapping_procedure}_"
             f"vehicletype{config.vehicle_type}"
         )
 
@@ -112,11 +112,12 @@ def output_path_for_config(config: ManualLabelsConfig) -> str:
 
 
 def save_dataset(data_set: list[dict[str, Any]], file_path: str) -> None:
-    """Save a dataset to matching pickle and CSV files."""
+    """Save a dataset to a parquet file."""
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    with open(f"{file_path}.pickle", "wb") as f:
-        pickle.dump(data_set, f)
-    #pd.DataFrame(data_set).to_csv(f"{file_path}.csv", index=False)
+    pd.DataFrame(data_set).to_parquet(
+        f"{file_path}.parquet",
+        index=False,
+    )
 
 
 def validate_config(config: ManualLabelsConfig) -> None:
@@ -171,7 +172,7 @@ def main() -> None:
         config.mapping_type = mapping_type
         config.mapping_procedure = mapping_procedure
         output_path = run_pipeline(config)
-        print(f"Saved dataset to {output_path}.pickle")
+        print(f"Saved dataset to {output_path}.parquet")
 
 if __name__ == "__main__":
     main()
