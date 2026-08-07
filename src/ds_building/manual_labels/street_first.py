@@ -145,5 +145,3 @@ def create_data_set(
                 )
     print(data_set[:100])
     return data_set
-
-#TODO: Implement a reasonable condition on a maximal time gap between vibration-label pairs in the data set. (as is present in the labels first method)
