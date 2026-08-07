@@ -114,14 +114,14 @@ def create_data_set(
 ) -> list[dict[str, Any]]:
     """Create vibration/label examples using labels near each street point.
 
-    Currently supports `most_frequent`, which assigns the most common nearby manual
+    Currently supports `mostfrequent`, which assigns the most common nearby manual
     label to each qualifying street measurement.
 
     Args:
         df_street: Street measurement DataFrame containing vibration columns.
         vehicle_type_dict: Nested vehicle type mapping returned by
             `compute_vehicle_type_dict`.
-        mapping_procedure: Mapping strategy name; currently `most_frequent`.
+        mapping_procedure: Mapping strategy name; currently `mostfrequent`.
         vehicle_type: Vehicle type to extract from `vehicle_type_dict`.
 
     Returns:
@@ -131,7 +131,7 @@ def create_data_set(
     data_set = []
     for i, labels in vehicle_type_dict[vehicle_type].items():
         if list(labels["label"]):
-            if mapping_procedure == "most_frequent":
+            if mapping_procedure == "mostfrequent":
                 street_row = df_street.loc[i]
                 data_set.append({"vibration_x": street_row["vibration_x"],
                                 "vibration_y": street_row["vibration_y"],
