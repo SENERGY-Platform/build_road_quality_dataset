@@ -1,5 +1,5 @@
 import data_loader
-from model_building import ray_mlflow_classifier
+import ray_mlflow_classifier
 
 
 def main() -> None:
