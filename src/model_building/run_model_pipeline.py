@@ -1,4 +1,5 @@
 import data_loader
+from model_building import ray_mlflow_classifier
 
 
 def main() -> None:
@@ -10,7 +11,12 @@ def main() -> None:
         skip_feature_build_if_exists=True,
     )
     feature_datasets = data_loader.load_feature_ds(config)
+    dataset = next(iter(feature_datasets["manual"].values()))
 
+    training_result = ray_mlflow_classifier.train(dataset)
+
+    print("Training complete")
+    print(training_result)
 
 if __name__ == "__main__":
     main()
