@@ -20,6 +20,7 @@ FEATURE_COLS = [
     "vibration_x",
     "vibration_y",
     "vibration_z",
+    "vibration_magnitude",
     "speed",
     "score_mild",
     "score_standard",
