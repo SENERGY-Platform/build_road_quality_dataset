@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-import features
+from src.model_building.features import features
 
 REQUIRED_NUMBER_COLS = [
     "vibration_x",

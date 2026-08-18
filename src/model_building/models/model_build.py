@@ -2,9 +2,8 @@ from dataclasses import asdict
 
 from xgboost import XGBClassifier
 
-from experiment_config import ExperimentConfig
-from model_data import ModelData
-from models_ann import TwoPhaseANNModel
+from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.models.models_ann import TwoPhaseANNModel
 from sklearn.linear_model import Ridge
 import xgboost as xgb
 
@@ -22,4 +21,3 @@ def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhas
 
     else:
         raise ValueError(f"Unknown model: {model_type}")
-

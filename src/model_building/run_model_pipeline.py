@@ -1,9 +1,9 @@
-import data_loader
-from model_build import setup_model
-from data_test_cases import get_test_dataset_configurations
-from data_split import split_data_for_test_case
-from experiment_config import ExperimentConfig
-from model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
+from src.model_building.data import data_loader
+from src.model_building.models.model_build import setup_model
+from src.model_building.data.data_test_cases import get_test_dataset_configurations
+from src.model_building.data.data_split import split_data_for_test_case
+from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.config.model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
 
 def main() -> None:
     """Configure and run feature loading, test-case creation, splitting, and model setup."""

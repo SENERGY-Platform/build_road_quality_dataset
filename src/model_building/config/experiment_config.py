@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
+from src.model_building.config.model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
 
 
 @dataclass(frozen=True)

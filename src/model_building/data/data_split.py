@@ -4,10 +4,10 @@ from typing import Hashable
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from data_test_cases import DataTestCase
-from experiment_config import ExperimentConfig
-from features import label_category_from_continuous
-from model_data import ModelData
+from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.data.data_test_cases import DataTestCase
+from src.model_building.data.model_data import ModelData
+from src.model_building.features.features import label_category_from_continuous
 
 
 def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig) -> ModelData:
