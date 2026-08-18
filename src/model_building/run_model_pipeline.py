@@ -1,4 +1,5 @@
 import data_loader
+from model_build import setup_model
 from data_test_cases import get_test_dataset_configurations
 from data_split import split_data_for_test_case
 from experiment_config import ExperimentConfig
@@ -40,6 +41,8 @@ def main() -> None:
     test_cases = get_test_dataset_configurations(feature_datasets, experiment_config.test_cases, experiment_config.ds_version)
     for test_case in test_cases:
         model_data = split_data_for_test_case(test_case, experiment_config)
+        for model_str in experiment_config.models:
+            model = setup_model(model_str, experiment_config)
 
 
 if __name__ == "__main__":
