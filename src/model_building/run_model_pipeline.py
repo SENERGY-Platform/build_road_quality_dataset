@@ -1,10 +1,11 @@
 import data_loader
+from data_test_cases import get_test_dataset_configurations
 from experiment_config import ExperimentConfig
 from model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
 
 def main() -> None:
-    """Configure and run the model-building feature dataset pipeline."""
-    config = data_loader.DataConfig(
+    """Configure and run feature loading, test-case creation, splitting, and model setup."""
+    data_config = data_loader.DataConfig(
         osm_ds_dir="data/open_street_map/datasets",
         manual_ds_dir="data/molewa/datasets",
         feature_ds_dir="data/molewa/model_building/feature_ds",
@@ -34,6 +35,8 @@ def main() -> None:
         xgb_model_config=XGBoostModelConfig()
     )
 
+
+    test_cases = get_test_dataset_configurations(feature_datasets, experiment_config.test_cases, experiment_config.ds_version)
 
 
 if __name__ == "__main__":
