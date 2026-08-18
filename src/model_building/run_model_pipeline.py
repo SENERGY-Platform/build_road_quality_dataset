@@ -1,5 +1,6 @@
 import data_loader
 from data_test_cases import get_test_dataset_configurations
+from data_split import split_data_for_test_case
 from experiment_config import ExperimentConfig
 from model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
 
@@ -37,6 +38,8 @@ def main() -> None:
 
 
     test_cases = get_test_dataset_configurations(feature_datasets, experiment_config.test_cases, experiment_config.ds_version)
+    for test_case in test_cases:
+        model_data = split_data_for_test_case(test_case, experiment_config)
 
 
 if __name__ == "__main__":
