@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import replace
+import math
 from typing import Hashable
+import warnings
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -161,10 +163,14 @@ def _split_train_validation(
         return train_x.copy(), train_x.copy(), train_y.copy(), train_y.copy()
 
     train_y_classes = label_category_from_continuous(train_y)
-    x_train, x_val, y_train, y_val = train_test_split(train_x, train_y,
-                                                      stratify=train_y_classes,
-                                                      random_state=random_state,
-                                                      test_size=model_config.val_set_percentage)
+    try:
+        x_train, x_val, y_train, y_val = train_test_split(train_x, train_y,
+                                                          stratify=train_y_classes,
+                                                          random_state=random_state,
+                                                          test_size=model_config.val_set_percentage)
+    except Exception as e:
+        warnings.warn(f"Train validation split didn't work, returning empty validation set for now. {e.args[0]}")
+        return train_x.copy(), train_x.copy().iloc[0:0], train_y.copy(), train_y.copy().iloc[0:0]
     return x_train, x_val, y_train, y_val
 
 
