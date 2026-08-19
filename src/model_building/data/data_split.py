@@ -1,10 +1,12 @@
 from __future__ import annotations
+from dataclasses import replace
 from typing import Hashable
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.config.model_config import ANNModelConfig
 from src.model_building.data.data_test_cases import DataTestCase
 from src.model_building.data.model_data import ModelData
 from src.model_building.features.features import label_category_from_continuous
@@ -146,3 +148,43 @@ def split_data_for_test_case(test_case: DataTestCase, experiment_config: Experim
         return _split_c_case(test_case, experiment_config)
     else:
         raise ValueError('Unknown test case type')
+
+
+def _split_train_validation(
+    train_x: pd.DataFrame,
+    train_y: pd.Series,
+    model_config: ANNModelConfig,
+    random_state: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    """Split a train set into train/validation sets, preserving empty inputs."""
+    if train_x.empty or train_y.empty:
+        return train_x.copy(), train_x.copy(), train_y.copy(), train_y.copy()
+
+    train_y_classes = label_category_from_continuous(train_y)
+    x_train, x_val, y_train, y_val = train_test_split(train_x, train_y,
+                                                      stratify=train_y_classes,
+                                                      random_state=random_state,
+                                                      test_size=model_config.val_set_percentage)
+    return x_train, x_val, y_train, y_val
+
+
+def split_model_data_for_validation(model_data: ModelData, model_config: ANNModelConfig, random_state=42) -> ModelData:
+    """Returns a new model data object containing updated training and new validation data created by the split of the old training data.
+    Assumes pre-regulated sample distributions and propagates these through the labels in the val split."""
+    manual_train_x, manual_val_x, manual_train_y, manual_val_y = _split_train_validation(model_data.manual_train_x,
+                                                                                         model_data.manual_train_y,
+                                                                                         model_config, random_state)
+    osm_train_x, osm_val_x, osm_train_y, osm_val_y = _split_train_validation(model_data.osm_train_x,
+                                                                             model_data.osm_train_y,
+                                                                             model_config, random_state)
+    return replace(
+        model_data,
+        manual_train_x=manual_train_x,
+        manual_train_y=manual_train_y,
+        osm_train_x=osm_train_x,
+        osm_train_y=osm_train_y,
+        manual_val_x=manual_val_x,
+        manual_val_y=manual_val_y,
+        osm_val_x=osm_val_x,
+        osm_val_y=osm_val_y,
+    )
