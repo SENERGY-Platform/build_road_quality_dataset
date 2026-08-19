@@ -1,5 +1,5 @@
 from src.model_building.data import data_loader
-from src.model_building.models.model_build import setup_model
+from src.model_building.models.model_build import setup_model, train_model
 from src.model_building.data.data_test_cases import get_test_dataset_configurations
 from src.model_building.data.data_split import split_data_for_test_case
 from src.model_building.config.experiment_config import ExperimentConfig
@@ -43,6 +43,8 @@ def main() -> None:
         model_data = split_data_for_test_case(test_case, experiment_config)
         for model_str in experiment_config.models:
             model = setup_model(model_str, experiment_config)
+            trained_model = train_model(model, model_data, experiment_config)
+
 
 
 if __name__ == "__main__":

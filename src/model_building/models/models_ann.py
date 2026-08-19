@@ -8,3 +8,7 @@ class TwoPhaseANNModel:
         self.val_set_percentage = val_set_percentage
         self.layer_num_first_round = layer_num_first_round
         self.layer_num_second_round = layer_num_second_round
+
+    def fit(self, model_data):
+        """Fit the ANN model."""
+        return self

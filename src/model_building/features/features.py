@@ -50,3 +50,17 @@ def label_category_from_continuous(label_col: pd.Series) -> pd.Series:
         else: raise ValueError(f"Invalid continous value for label found: {x}")
 
     return label_col.map(_classify)
+
+def label_discrete_from_continuous(label_col: pd.Series) -> pd.Series:
+    """Map continuous numeric road-quality labels to good, medium, and bad classes."""
+    def _classify(x:float):
+        """Classify one numeric label value into a road-quality class."""
+        if x <= 0.33:
+            return 0
+        elif 0.33 < x <= 1.33:
+            return 1
+        elif 1.33 < x:
+            return 2
+        else: raise ValueError(f"Invalid continous value for label found: {x}")
+
+    return label_col.map(_classify)
