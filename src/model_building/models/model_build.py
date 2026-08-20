@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from xgboost import XGBClassifier
 
@@ -26,13 +26,27 @@ def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhas
         raise ValueError(f"Unknown model: {model_type}")
 
 
+def update_model_data_for_validation(
+    model: TwoPhaseANNModel | Ridge | XGBClassifier,
+    model_data: ModelData,
+    experiment_config: ExperimentConfig,
+) -> ModelData:
+    """Return model-specific data, including validation data if the model needs it."""
+    if type(model) == TwoPhaseANNModel:
+        return split_model_data_for_validation(model_data, experiment_config.ann_model_config)
+
+    if type(model) in [Ridge, XGBClassifier]:
+        return replace(model_data)
+
+    raise ValueError(f"Unknown model: {type(model)}")
+
+
 def train_model(model: TwoPhaseANNModel | Ridge | XGBClassifier,
                 model_data: ModelData,
                 experiment_config: ExperimentConfig) -> TwoPhaseANNModel | Ridge | XGBClassifier:
     """Fit a configured model on the prepared training data."""
     if type(model) == TwoPhaseANNModel:
-        ann_model_data = split_model_data_for_validation(model_data, experiment_config.ann_model_config)
-        return model.fit(ann_model_data)
+        return model.fit(model_data)
 
     elif type(model) == Ridge:
         return model.fit(model_data.get_train_x(), label_discrete_from_continuous(model_data.get_train_y()))

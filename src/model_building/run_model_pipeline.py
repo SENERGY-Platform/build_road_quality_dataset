@@ -40,10 +40,11 @@ def main() -> None:
 
     test_cases = get_test_dataset_configurations(feature_datasets, experiment_config.test_cases, experiment_config.ds_version)
     for test_case in test_cases:
-        model_data = split_data_for_test_case(test_case, experiment_config)
+        test_case_model_data = split_data_for_test_case(test_case, experiment_config)
         for model_str in experiment_config.models:
             model = setup_model(model_str, experiment_config)
-            trained_model = train_model(model, model_data, experiment_config)
+            training_model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
+            trained_model = train_model(model, training_model_data, experiment_config)
 
 
 
