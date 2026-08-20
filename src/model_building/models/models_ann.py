@@ -6,9 +6,6 @@ from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.model_building.features.features import label_discrete_from_continuous
-
-
 class TwoPhaseANNModel:
     def __init__(self, val_set_percentage, layer_num_first_round, layer_num_second_round):
         self.val_set_percentage = val_set_percentage
@@ -16,8 +13,8 @@ class TwoPhaseANNModel:
         self.layer_num_second_round = layer_num_second_round
         self.scaler = StandardScaler()
         self.backbone = None
-        self.regression_head = None
-        self.classifier_head = None
+        self.pretrain_head = None
+        self.finetune_head = None
         self.pretrain_losses = []
         self.finetune_losses = []
 
@@ -30,14 +27,14 @@ class TwoPhaseANNModel:
             current_size = width
         return nn.Sequential(*layers), current_size
 
-    def make_classifier(self, input_size):
+    def make_finetune_head(self, input_size):
         layers = []
         current_size = input_size
         for _ in range(max(0, self.layer_num_second_round - 1)):
             next_size = max(8, current_size // 2)
             layers.extend([nn.Linear(current_size, next_size), nn.ReLU()])
             current_size = next_size
-        layers.append(nn.Linear(current_size, 3))
+        layers.append(nn.Linear(current_size, 1))
         return nn.Sequential(*layers)
 
     def loader(self, x, y, batch_size=64):
@@ -61,7 +58,7 @@ class TwoPhaseANNModel:
         return losses
 
     def pretrain(self, x, y):
-        model = nn.Sequential(self.backbone, self.regression_head)
+        model = nn.Sequential(self.backbone, self.pretrain_head)
         labels = np.asarray(y, dtype=np.float32).reshape(-1, 1)
         loader = self.loader(x, labels)
         self.pretrain_losses = self.train(model, loader, nn.MSELoss(), 50, 0.001)
@@ -69,10 +66,10 @@ class TwoPhaseANNModel:
     def finetune(self, x, y):
         for parameter in self.backbone.parameters():
             parameter.requires_grad = False
-        model = nn.Sequential(self.backbone, self.classifier_head)
-        labels = label_discrete_from_continuous(y).to_numpy(dtype=np.int64)
+        model = nn.Sequential(self.backbone, self.finetune_head)
+        labels = np.asarray(y, dtype=np.float32).reshape(-1, 1)
         loader = self.loader(x, labels)
-        self.finetune_losses = self.train(model, loader, nn.CrossEntropyLoss(), 100, 0.001)
+        self.finetune_losses = self.train(model, loader, nn.MSELoss(), 100, 0.001)
 
     def fit(self, model_data):
         torch.manual_seed(42)
@@ -80,26 +77,23 @@ class TwoPhaseANNModel:
         self.scaler.fit(source_x)
 
         self.backbone, output_size = self.make_backbone(source_x.shape[1])
-        self.regression_head = nn.Linear(output_size, 1)
+        self.pretrain_head = nn.Linear(output_size, 1)
 
         if not model_data.osm_train_x.empty:
             osm_x = self.scaler.transform(model_data.osm_train_x)
             self.pretrain(osm_x, model_data.osm_train_y)
 
-        self.classifier_head = self.make_classifier(output_size)
+        self.finetune_head = self.make_finetune_head(output_size)
         if not model_data.manual_train_x.empty:
             manual_x = self.scaler.transform(model_data.manual_train_x)
             self.finetune(manual_x, model_data.manual_train_y)
 
         return self
 
-    def predict_proba(self, x):
+    def predict(self, x):
         values = self.scaler.transform(x)
         tensor = torch.tensor(values, dtype=torch.float32)
-        model = nn.Sequential(self.backbone, self.classifier_head)
+        model = nn.Sequential(self.backbone, self.finetune_head)
         model.eval()
         with torch.no_grad():
-            return torch.softmax(model(tensor), dim=1).numpy()
-
-    def predict(self, x):
-        return self.predict_proba(x).argmax(axis=1)
+            return model(tensor).numpy().reshape(-1)
