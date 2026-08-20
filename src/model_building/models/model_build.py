@@ -14,7 +14,10 @@ import xgboost as xgb
 def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhaseANNModel | Ridge | XGBClassifier:
     """Instantiate the requested model type from the experiment configuration."""
     if model_type == 'ANN':
-        return TwoPhaseANNModel(**asdict(experiment_config.ann_model_config))
+        ann_config = asdict(experiment_config.ann_model_config)
+        # val_set_percentage is used for splitting, not for constructing the network.
+        ann_config.pop('val_set_percentage')
+        return TwoPhaseANNModel(**ann_config)
 
     if model_type == 'Linear':
         return Ridge(**asdict(experiment_config.linear_model_config))

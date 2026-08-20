@@ -53,6 +53,7 @@ def main() -> None:
             training_model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
             log_model_data_used(logger, test_case.case_id, model_str, training_model_data)
             trained_model = train_model(model, training_model_data, experiment_config)
+            predictions = trained_model.predict(training_model_data.test_x)
 
 
 
