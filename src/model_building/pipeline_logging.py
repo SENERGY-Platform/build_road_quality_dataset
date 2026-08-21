@@ -49,3 +49,13 @@ def log_model_data_used(logger: logging.Logger, testcase_id: str, model_name: st
         len(model_data.osm_val_y.index),
         len(model_data.test_y.index),
     )
+
+
+def log_model_metrics(logger: logging.Logger, testcase_id: str, model_name: str, metrics: dict[str, float]) -> None:
+    """Log evaluation metrics for one model and testcase."""
+    logger.info(
+        "event=model_evaluated testcase_id=%s model=%s metrics=%s",
+        testcase_id,
+        model_name,
+        metrics,
+    )

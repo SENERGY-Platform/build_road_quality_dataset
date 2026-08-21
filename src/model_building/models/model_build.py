@@ -1,5 +1,6 @@
 from dataclasses import asdict, replace
 
+import pandas as pd
 from xgboost import XGBRegressor
 
 from src.model_building.config.experiment_config import ExperimentConfig
@@ -9,6 +10,7 @@ from src.model_building.data.data_split import split_model_data_for_validation
 from src.model_building.features.features import label_discrete_from_continuous
 from sklearn.linear_model import Ridge
 
+from sklearn.metrics import f1_score, mean_absolute_error
 
 
 def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhaseANNModel | Ridge | XGBRegressor:
@@ -54,3 +56,41 @@ def train_model(model: TwoPhaseANNModel | Ridge | XGBRegressor,
         return model.fit(model_data.get_train_x(), model_data.get_train_y())
 
     else: raise ValueError(f"Unknown model: {type(model)}")
+
+
+def evaluate_model(model: TwoPhaseANNModel | Ridge | XGBRegressor, model_data: ModelData) -> dict[str, float]:
+    """Evaluate predictions on the held-out manual test set.
+
+    MAE is calculated on the numeric label scale. F1 metrics are calculated
+    after converting both true labels and predictions to the discrete road
+    quality classes: 0=good, 1=medium, and 2=bad.
+    """
+    predictions_cont = pd.Series(
+        model.predict(model_data.test_x),
+        index=model_data.test_y.index,
+    )
+    score_mae = mean_absolute_error(model_data.test_y, predictions_cont)
+    test_y_discrete = label_discrete_from_continuous(model_data.test_y)
+    predictions_discrete = label_discrete_from_continuous(predictions_cont)
+    f1_good, f1_medium, f1_bad = f1_score(
+        test_y_discrete,
+        predictions_discrete,
+        labels=[0, 1, 2],
+        average=None,
+        zero_division=0,
+    )
+    f1_macro = f1_score(
+        test_y_discrete,
+        predictions_discrete,
+        labels=[0, 1, 2],
+        average="macro",
+        zero_division=0,
+    )
+
+    return {
+        'mae': score_mae,
+        'f1_macro': f1_macro,
+        'f1_good': f1_good,
+        'f1_medium': f1_medium,
+        'f1_bad': f1_bad,
+    }

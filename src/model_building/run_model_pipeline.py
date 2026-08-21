@@ -1,5 +1,5 @@
 from src.model_building.data import data_loader
-from src.model_building.models.model_build import setup_model, train_model, update_model_data_for_validation
+from src.model_building.models.model_build import setup_model, train_model, update_model_data_for_validation, evaluate_model
 from src.model_building.data.data_test_cases import get_test_dataset_configurations
 from src.model_building.data.data_split import split_data_for_test_case
 from src.model_building.config.experiment_config import ExperimentConfig
@@ -7,6 +7,7 @@ from src.model_building.config.model_config import ANNModelConfig, LinearModelCo
 from src.model_building.pipeline_logging import (
     configure_pipeline_logging,
     log_model_data_used,
+    log_model_metrics,
     log_testcase_started,
 )
 
@@ -50,10 +51,11 @@ def main() -> None:
         test_case_model_data = split_data_for_test_case(test_case, experiment_config)
         for model_str in experiment_config.models:
             model = setup_model(model_str, experiment_config)
-            training_model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
-            log_model_data_used(logger, test_case.case_id, model_str, training_model_data)
-            trained_model = train_model(model, training_model_data, experiment_config)
-            predictions = trained_model.predict(training_model_data.test_x)
+            model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
+            log_model_data_used(logger, test_case.case_id, model_str, model_data)
+            trained_model = train_model(model, model_data)
+            metrics = evaluate_model(trained_model, model_data)
+            log_model_metrics(logger, test_case.case_id, model_str, metrics)
 
 
 
