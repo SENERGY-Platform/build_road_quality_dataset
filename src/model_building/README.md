@@ -8,10 +8,42 @@ The pipeline loads or creates feature datasets, builds experiment test cases, sp
 Run the pipeline from the repository root:
 
 ```bash
-python src/model_building/model_pipeline.py
+python src/model_building/model_evaluation_pipeline.py
 ```
 
-The entry point is `model_pipeline.py`. It currently defines the data paths, experiment settings, selected features, model list, split count, and train/test split percentages directly in code.
+The entry point is `model_evaluation_pipeline.py`. Its `example()` function defines a `DataConfig` and an `ExperimentConfig`, then calls `run_experiment`.
+
+You can define experiments in another file by importing `run_experiment` and passing a `DataConfig` plus an `ExperimentConfig`:
+
+```python
+from src.model_building.data.data_loader import DataConfig
+from src.model_building.model_evaluation_pipeline import run_experiment
+from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.config.model_config import LinearModelConfig, XGBoostModelConfig
+
+data_config = DataConfig(
+    osm_ds_dir="data/open_street_map/datasets",
+    manual_ds_dir="data/molewa/datasets",
+    feature_ds_dir="data/molewa/model_building/feature_ds",
+    skip_feature_build_if_exists=True,
+)
+
+experiment_config = ExperimentConfig(
+    experiment_name="my_experiment",
+    test_cases=["A", "B", "C"],
+    case_b_all_osm_data=False,
+    case_c_all_osm_data=False,
+    cross_validation_k=10,
+    ds_version="v1.0",
+    features=["vibration_x", "vibration_y", "vibration_z", "speed"],
+    models=["Linear", "XGBoost"],
+    test_set_percentage=0.3,
+    linear_model_config=LinearModelConfig(),
+    xgb_model_config=XGBoostModelConfig(),
+)
+
+run_experiment(data_config, experiment_config)
+```
 
 ## Input Data
 
@@ -116,6 +148,7 @@ Training labels for `Linear` and `XGBoost` are converted from numeric labels to 
 ## Model Evaluation
 
 Evaluation is implemented in `models/model_build.py` by `evaluate_model`.
+The evaluation pipeline uses `crossvalidate_model` to train and evaluate one configured model across repeated stratified splits for one test case.
 
 For each trained model, the pipeline calls:
 
@@ -147,6 +180,8 @@ The current logs include:
 
 - `testcase_started`: test-case id plus manual and OSM row counts
 - `model_data_used`: train, validation, and test row counts for each model/test-case pair
+- `model_evaluated`: per-split evaluation metrics for each model/test-case pair
+- `cross_val_performance`: averaged evaluation metrics across all repeated splits for each model/test-case pair
 
 ## Current Outputs
 
@@ -155,9 +190,9 @@ The pipeline can write reusable feature datasets to:
 - `data/molewa/model_building/feature_ds/osm`
 - `data/molewa/model_building/feature_ds/manual`
 
-Evaluation metrics are currently returned from `evaluate_model` and logged by `model_pipeline.py`, but they are not yet persisted to disk.
+Evaluation metrics are currently returned from `evaluate_model` and logged by `model_evaluation_pipeline.py`, but they are not yet persisted to disk.
 
 ## Known Limitations
 
 - Model metrics are calculated but not saved to disk.
-- Experiment configuration is currently hard-coded in `model_pipeline.py`.
+- The default runnable example is currently defined in `model_evaluation_pipeline.py`.
