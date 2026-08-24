@@ -11,6 +11,7 @@ from src.model_building.features.features import label_discrete_from_continuous
 from sklearn.linear_model import Ridge
 
 from sklearn.metrics import f1_score, mean_absolute_error
+from src.model_building.models.metrics import ModelPerformance
 
 
 def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhaseANNModel | Ridge | XGBRegressor:
@@ -58,7 +59,7 @@ def train_model(model: TwoPhaseANNModel | Ridge | XGBRegressor,
     else: raise ValueError(f"Unknown model: {type(model)}")
 
 
-def evaluate_model(model: TwoPhaseANNModel | Ridge | XGBRegressor, model_data: ModelData) -> dict[str, float]:
+def evaluate_model(model: TwoPhaseANNModel | Ridge | XGBRegressor, model_data: ModelData) -> ModelPerformance:
     """Evaluate predictions on the held-out manual test set.
 
     MAE is calculated on the numeric label scale. F1 metrics are calculated
@@ -87,10 +88,10 @@ def evaluate_model(model: TwoPhaseANNModel | Ridge | XGBRegressor, model_data: M
         zero_division=0,
     )
 
-    return {
-        'mae': score_mae,
-        'f1_macro': f1_macro,
-        'f1_good': f1_good,
-        'f1_medium': f1_medium,
-        'f1_bad': f1_bad,
-    }
+    return ModelPerformance(
+        mae=score_mae,
+        f1_macro=f1_macro,
+        f1_good=f1_good,
+        f1_medium=f1_medium,
+        f1_bad=f1_bad,
+    )

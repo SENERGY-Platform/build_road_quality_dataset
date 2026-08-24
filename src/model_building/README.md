@@ -8,10 +8,10 @@ The pipeline loads or creates feature datasets, builds experiment test cases, sp
 Run the pipeline from the repository root:
 
 ```bash
-python src/model_building/run_model_pipeline.py
+python src/model_building/model_pipeline.py
 ```
 
-The entry point is `run_model_pipeline.py`. It currently defines the data paths, experiment settings, selected features, model list, and train/test split percentages directly in code.
+The entry point is `model_pipeline.py`. It currently defines the data paths, experiment settings, selected features, model list, split count, and train/test split percentages directly in code.
 
 ## Input Data
 
@@ -85,7 +85,7 @@ The held-out test set always comes from the manual labelled dataset:
 - Case B trains on the manual train split plus sampled OSM training data, then tests on the manual test split.
 - Case C trains on sampled OSM training data, then tests on the manual test split.
 
-Manual data is split with `train_test_split`, using `test_set_percentage` from `ExperimentConfig`. The split is stratified by discrete label category and uses `random_state=42`.
+Manual data is split repeatedly with `train_test_split`, using `test_set_percentage` from `ExperimentConfig`. Each split is stratified by discrete label category and uses a different `random_state`.
 
 For Case B and Case C, OSM training rows are sampled to match the manual training label distribution. By default, the OSM training sample size matches the manual training size. Set `case_b_all_osm_data=True` or `case_c_all_osm_data=True` to request all available OSM rows for that case type, subject to the available class distribution.
 
@@ -104,8 +104,8 @@ Supported model names in `ExperimentConfig.models` are:
 Current training behavior:
 
 - `Linear` uses `sklearn.linear_model.Ridge`.
-- `XGBoost` uses `xgboost.XGBClassifier`.
-- `ANN` uses `TwoPhaseANNModel`, which is currently a placeholder.
+- `XGBoost` uses `xgboost.XGBRegressor`.
+- `ANN` uses `TwoPhaseANNModel`.
 
 Training labels for `Linear` and `XGBoost` are converted from numeric labels to discrete classes before fitting:
 
@@ -155,10 +155,9 @@ The pipeline can write reusable feature datasets to:
 - `data/molewa/model_building/feature_ds/osm`
 - `data/molewa/model_building/feature_ds/manual`
 
-Evaluation metrics are currently returned from `evaluate_model`, but `run_model_pipeline.py` does not yet persist or log them.
+Evaluation metrics are currently returned from `evaluate_model` and logged by `model_pipeline.py`, but they are not yet persisted to disk.
 
 ## Known Limitations
 
-- `TwoPhaseANNModel` is still a placeholder and does not implement `predict`, so evaluation will fail for `ANN` until the model is implemented.
 - Model metrics are calculated but not saved to disk.
-- Experiment configuration is currently hard-coded in `run_model_pipeline.py`.
+- Experiment configuration is currently hard-coded in `model_pipeline.py`.

@@ -7,11 +7,11 @@ from src.model_building.config.model_config import ANNModelConfig, LinearModelCo
 @dataclass(frozen=True)
 class ExperimentConfig:
     """Configuration for one model-building experiment run."""
-
     experiment_name: str
     test_cases: list[str]
     case_b_all_osm_data: bool
     case_c_all_osm_data: bool
+    cross_validation_k: int
 
     ds_version: str
     features: list[str]
@@ -26,9 +26,11 @@ class ExperimentConfig:
 
     def __post_init__(self):
         """Validate that each requested model has a matching config object."""
+        if self.cross_validation_k <= 0:
+            raise ValueError("cross_validation_k must be greater than 0.")
         if 'ANN' in self.models and not self.ann_model_config:
-                raise ValueError("Please provide a configuration for the ANN model.")
+            raise ValueError("Please provide a configuration for the ANN model.")
         if 'Linear' in self.models and not self.linear_model_config:
-                raise ValueError("Please provide a configuration for the linear model.")
+            raise ValueError("Please provide a configuration for the linear model.")
         if 'XGBoost' in self.models and not self.xgb_model_config:
-                raise ValueError("Please provide a configuration for the XGBoost model.")
+            raise ValueError("Please provide a configuration for the XGBoost model.")

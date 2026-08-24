@@ -1,8 +1,10 @@
+from dataclasses import asdict
 import logging
 import sys
 
 from src.model_building.data.data_test_cases import DataTestCase
 from src.model_building.data.model_data import ModelData
+from src.model_building.models.metrics import CrossValidationPerformance
 
 LOGGER_NAME = "model_building.pipeline"
 
@@ -39,10 +41,13 @@ def log_model_data_used(logger: logging.Logger, testcase_id: str, model_name: st
     logger.info(
         (
             "event=model_data_used testcase_id=%s model=%s "
+            "case_origin=%s random_state=%s "
             "manual_train_rows=%s osm_train_rows=%s manual_val_rows=%s osm_val_rows=%s test_rows=%s"
         ),
         testcase_id,
         model_name,
+        model_data.test_case_origin,
+        model_data.random_state,
         len(model_data.manual_train_y.index),
         len(model_data.osm_train_y.index),
         len(model_data.manual_val_y.index),
@@ -58,4 +63,19 @@ def log_model_metrics(logger: logging.Logger, testcase_id: str, model_name: str,
         testcase_id,
         model_name,
         metrics,
+    )
+
+
+def log_cross_val_performance(
+    logger: logging.Logger,
+    testcase_id: str,
+    model_name: str,
+    cross_val_performance: CrossValidationPerformance,
+) -> None:
+    """Log the final averaged performance across repeated stratified splits."""
+    logger.info(
+        "event=cross_val_performance testcase_id=%s model=%s metrics=%s",
+        testcase_id,
+        model_name,
+        asdict(cross_val_performance.get_final_performance()),
     )

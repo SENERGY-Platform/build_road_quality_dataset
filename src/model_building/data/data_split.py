@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import replace
-import math
 from typing import Hashable
 import warnings
 
@@ -14,15 +13,17 @@ from src.model_building.data.model_data import ModelData
 from src.model_building.features.features import label_category_from_continuous
 
 
-def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig) -> ModelData:
+def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_state) -> ModelData:
     """Create train/test data for case A, using only manual labels for training."""
     # all manual
     if test_case.case_type == 'A' and (test_case.manual_ds is None or test_case.manual_ds_id is None):
         raise ValueError('Manual dataset is required for splitting model data for combination case A.')
 
-    x_train, y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config)
+    x_train, y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config, random_state)
 
     return ModelData(
+        test_case_origin='A',
+        random_state=random_state,
         manual_train_x=x_train,
         manual_train_y=y_train,
         osm_train_x=pd.DataFrame(), # empty
@@ -31,17 +32,19 @@ def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig) -> Mode
         test_y=y_test,
     )
 
-def _split_b_case(test_case: DataTestCase, exp_config: ExperimentConfig)-> ModelData:
+def _split_b_case(test_case: DataTestCase, exp_config: ExperimentConfig,  random_state)-> ModelData:
     """Create train/test data for case B, combining manual and sampled OSM training data."""
     # manual and osm
     if test_case.case_type == 'B' and (test_case.osm_ds is None or test_case.osm_ds_id is None or
                                        test_case.manual_ds_id is None or test_case.manual_ds is None):
         raise ValueError('Both manual and osm datasets are required for splitting model data for combination case B.')
 
-    manual_x_train, manual_y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config)
-    osm_x_train, osm_y_train = _split_osm_by_manual_label_distribution(test_case, exp_config, manual_y_train)
+    manual_x_train, manual_y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config, random_state)
+    osm_x_train, osm_y_train = _split_osm_by_manual_label_distribution(test_case, exp_config, manual_y_train, random_state)
 
     return ModelData(
+        test_case_origin='B',
+        random_state=random_state,
         manual_train_x=manual_x_train,
         manual_train_y=manual_y_train,
         osm_train_x=osm_x_train,
@@ -50,18 +53,20 @@ def _split_b_case(test_case: DataTestCase, exp_config: ExperimentConfig)-> Model
         test_y=y_test,
     )
 
-def _split_c_case(test_case: DataTestCase, exp_config: ExperimentConfig) -> ModelData:
+def _split_c_case(test_case: DataTestCase, exp_config: ExperimentConfig,  random_state) -> ModelData:
     """Create train/test data for case C, training on sampled OSM data and testing on manual data."""
     # osm only
     if test_case.case_type == 'C' and (test_case.osm_ds is None or test_case.osm_ds_id is None or
                                        test_case.manual_ds_id is None or test_case.manual_ds is None):
         raise ValueError('Both manual and osm datasets are required for splitting model data for combination case C.')
 
-    manual_x_train, manual_y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config)
+    manual_x_train, manual_y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config,  random_state)
 
-    osm_x_train, osm_y_train = _split_osm_by_manual_label_distribution(test_case, exp_config, manual_y_train)
+    osm_x_train, osm_y_train = _split_osm_by_manual_label_distribution(test_case, exp_config, manual_y_train,  random_state)
 
     return ModelData(
+        test_case_origin='C',
+        random_state=random_state,
         manual_train_x=pd.DataFrame(),
         manual_train_y=pd.Series(),
         osm_train_x=osm_x_train,
@@ -70,12 +75,12 @@ def _split_c_case(test_case: DataTestCase, exp_config: ExperimentConfig) -> Mode
         test_y=y_test,
     )
 
-def _split_manual_dataset(test_case: DataTestCase, exp_config: ExperimentConfig):
+def _split_manual_dataset(test_case: DataTestCase, exp_config: ExperimentConfig,  random_state):
     """Split a manual dataset into stratified train and test feature/label sets."""
     features_df, label_s = _split_features_label(test_case.manual_ds, exp_config.label_column, exp_config.features)
     y_classes = label_category_from_continuous(label_s)
     x_train, x_test, y_train, y_test = train_test_split(features_df, label_s,
-                                                        stratify=y_classes, random_state=42,
+                                                        stratify=y_classes, random_state=random_state,
                                                         test_size=exp_config.test_set_percentage)
     return x_train, y_train, x_test, y_test
 
@@ -117,7 +122,7 @@ def _draw_stratified_osm_sample(
 
     return pd.concat(parts).sample(frac=1, random_state=random_state).reset_index(drop=True)
 
-def _split_osm_by_manual_label_distribution(test_case: DataTestCase, exp_config: ExperimentConfig, manual_train_y: pd.Series)-> tuple[pd.DataFrame, pd.Series]:
+def _split_osm_by_manual_label_distribution(test_case: DataTestCase, exp_config: ExperimentConfig, manual_train_y: pd.Series,  random_state:int=42)-> tuple[pd.DataFrame, pd.Series]:
     """Sample OSM training data with the same categorical label distribution as manual training labels."""
     osm_df = test_case.osm_ds.copy()
     osm_df['label_str'] = label_category_from_continuous(osm_df['label'])
@@ -128,7 +133,7 @@ def _split_osm_by_manual_label_distribution(test_case: DataTestCase, exp_config:
         label_col='label_str',
         requested_sample_size=train_sample_num,
         requested_distribution=target_distribution,
-        random_state=42
+        random_state=random_state,
     )
     features_df, label_s = _split_features_label(osm_train, exp_config.label_column, exp_config.features)
     return features_df, label_s
@@ -140,14 +145,14 @@ def _calc_osm_train_size(test_case: DataTestCase, exp_config: ExperimentConfig, 
     else:
         return manual_train_len
 
-def split_data_for_test_case(test_case: DataTestCase, experiment_config: ExperimentConfig)-> ModelData:
+def split_data_for_test_case(test_case: DataTestCase, experiment_config: ExperimentConfig, random_state:int=42)-> ModelData:
     """Dispatch a data test case to the corresponding train/test split strategy."""
     if test_case.case_type == 'A':
-        return _split_a_case(test_case, experiment_config)
+        return _split_a_case(test_case, experiment_config, random_state)
     elif test_case.case_type == 'B':
-        return _split_b_case(test_case, experiment_config)
+        return _split_b_case(test_case, experiment_config, random_state)
     elif test_case.case_type == 'C':
-        return _split_c_case(test_case, experiment_config)
+        return _split_c_case(test_case, experiment_config, random_state)
     else:
         raise ValueError('Unknown test case type')
 
@@ -194,3 +199,10 @@ def split_model_data_for_validation(model_data: ModelData, model_config: ANNMode
         osm_val_x=osm_val_x,
         osm_val_y=osm_val_y,
     )
+
+def build_stratified_shuffle_split_datasets(test_case: DataTestCase, experiment_config: ExperimentConfig) -> list[ModelData]:
+    """Build repeated stratified train/test splits for one test case."""
+    model_data_cases: list[ModelData] = []
+    for k in range(experiment_config.cross_validation_k):
+        model_data_cases.append(split_data_for_test_case(test_case, experiment_config, random_state=k))
+    return model_data_cases

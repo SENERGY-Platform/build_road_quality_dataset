@@ -9,6 +9,8 @@ DEFAULT_SHUFFLE_RANDOM_STATE = 42
 @dataclass(frozen=True)
 class ModelData:
     """Container for train, test, and optional validation splits used by models."""
+    test_case_origin: str
+    random_state: int
 
     manual_train_x: pd.DataFrame
     manual_train_y: pd.Series
