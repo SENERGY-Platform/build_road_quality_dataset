@@ -9,11 +9,16 @@ from src.model_building.data.model_data import ModelData
 from src.model_building.data.data_split import split_model_data_for_validation
 from src.model_building.features.features import label_discrete_from_continuous
 from sklearn.linear_model import Ridge
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 from sklearn.metrics import f1_score, mean_absolute_error
+from src.model_building.models.metrics import ModelPerformance
+
+Model = TwoPhaseANNModel | Pipeline | XGBRegressor
 
 
-def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhaseANNModel | Ridge | XGBRegressor:
+def setup_model(model_type: str, experiment_config: ExperimentConfig) -> Model:
     """Instantiate the requested model type from the experiment configuration."""
     if model_type == 'ANN':
         ann_config = asdict(experiment_config.ann_model_config)
@@ -22,7 +27,10 @@ def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhas
         return TwoPhaseANNModel(**ann_config)
 
     if model_type == 'Linear':
-        return Ridge(**asdict(experiment_config.linear_model_config))
+        return make_pipeline(
+            StandardScaler(),
+            Ridge(**asdict(experiment_config.linear_model_config)),
+        )
 
     if model_type == 'XGBoost':
         return XGBRegressor(**asdict(experiment_config.xgb_model_config))
@@ -32,33 +40,33 @@ def setup_model(model_type: str, experiment_config: ExperimentConfig) -> TwoPhas
 
 
 def update_model_data_for_validation(
-    model: TwoPhaseANNModel | Ridge | XGBRegressor,
+    model: Model,
     model_data: ModelData,
     experiment_config: ExperimentConfig,
 ) -> ModelData:
     """Return model-specific data, including validation data if the model needs it."""
-    if type(model) == TwoPhaseANNModel:
+    if isinstance(model, TwoPhaseANNModel):
         return split_model_data_for_validation(model_data, experiment_config.ann_model_config)
 
-    if type(model) in [Ridge, XGBRegressor]:
+    if isinstance(model, (Pipeline, XGBRegressor)):
         return replace(model_data)
 
     raise ValueError(f"Unknown model: {type(model)}")
 
 
-def train_model(model: TwoPhaseANNModel | Ridge | XGBRegressor,
-                model_data: ModelData) -> TwoPhaseANNModel | Ridge | XGBRegressor:
+def train_model(model: Model, model_data: ModelData) -> Model:
     """Fit a configured model on the prepared training data."""
-    if type(model) == TwoPhaseANNModel:
+    if isinstance(model, TwoPhaseANNModel):
         return model.fit(model_data)
 
-    elif type(model) in [Ridge, XGBRegressor]:
-        return model.fit(model_data.get_train_x(), model_data.get_train_y())
+    elif isinstance(model, (Pipeline, XGBRegressor)):
+        model.fit(model_data.get_train_x(), model_data.get_train_y())
+        return model
 
     else: raise ValueError(f"Unknown model: {type(model)}")
 
 
-def evaluate_model(model: TwoPhaseANNModel | Ridge | XGBRegressor, model_data: ModelData) -> dict[str, float]:
+def evaluate_model(model: Model, model_data: ModelData) -> ModelPerformance:
     """Evaluate predictions on the held-out manual test set.
 
     MAE is calculated on the numeric label scale. F1 metrics are calculated
@@ -87,10 +95,10 @@ def evaluate_model(model: TwoPhaseANNModel | Ridge | XGBRegressor, model_data: M
         zero_division=0,
     )
 
-    return {
-        'mae': score_mae,
-        'f1_macro': f1_macro,
-        'f1_good': f1_good,
-        'f1_medium': f1_medium,
-        'f1_bad': f1_bad,
-    }
+    return ModelPerformance(
+        mae=score_mae,
+        f1_macro=f1_macro,
+        f1_good=f1_good,
+        f1_medium=f1_medium,
+        f1_bad=f1_bad,
+    )

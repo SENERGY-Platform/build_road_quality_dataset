@@ -8,10 +8,42 @@ The pipeline loads or creates feature datasets, builds experiment test cases, sp
 Run the pipeline from the repository root:
 
 ```bash
-python src/model_building/run_model_pipeline.py
+python src/model_building/model_evaluation_pipeline.py
 ```
 
-The entry point is `run_model_pipeline.py`. It currently defines the data paths, experiment settings, selected features, model list, and train/test split percentages directly in code.
+The entry point is `model_evaluation_pipeline.py`. Its `example()` function defines a `DataConfig` and an `ExperimentConfig`, then calls `run_experiment`.
+
+You can define experiments in another file by importing `run_experiment` and passing a `DataConfig` plus an `ExperimentConfig`:
+
+```python
+from src.model_building.data.data_loader import DataConfig
+from src.model_building.model_evaluation_pipeline import run_experiment
+from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.config.model_config import LinearModelConfig, XGBoostModelConfig
+
+data_config = DataConfig(
+    osm_ds_dir="data/open_street_map/datasets",
+    manual_ds_dir="data/molewa/datasets",
+    feature_ds_dir="data/molewa/model_building/feature_ds",
+    skip_feature_build_if_exists=True,
+)
+
+experiment_config = ExperimentConfig(
+    experiment_name="my_experiment",
+    test_cases=["A", "B", "C"],
+    case_b_all_osm_data=False,
+    case_c_all_osm_data=False,
+    cross_validation_k=10,
+    ds_version="v1.0",
+    features=["vibration_x", "vibration_y", "vibration_z", "speed"],
+    models=["Linear", "XGBoost"],
+    test_set_percentage=0.3,
+    linear_model_config=LinearModelConfig(alpha=1.0),
+    xgb_model_config=XGBoostModelConfig(),
+)
+
+run_experiment(data_config, experiment_config)
+```
 
 ## Input Data
 
@@ -85,7 +117,7 @@ The held-out test set always comes from the manual labelled dataset:
 - Case B trains on the manual train split plus sampled OSM training data, then tests on the manual test split.
 - Case C trains on sampled OSM training data, then tests on the manual test split.
 
-Manual data is split with `train_test_split`, using `test_set_percentage` from `ExperimentConfig`. The split is stratified by discrete label category and uses `random_state=42`.
+Manual data is split repeatedly with `train_test_split`, using `test_set_percentage` from `ExperimentConfig`. Each split is stratified by discrete label category and uses a different `random_state`.
 
 For Case B and Case C, OSM training rows are sampled to match the manual training label distribution. By default, the OSM training sample size matches the manual training size. Set `case_b_all_osm_data=True` or `case_c_all_osm_data=True` to request all available OSM rows for that case type, subject to the available class distribution.
 
@@ -103,11 +135,11 @@ Supported model names in `ExperimentConfig.models` are:
 
 Current training behavior:
 
-- `Linear` uses `sklearn.linear_model.Ridge`.
-- `XGBoost` uses `xgboost.XGBClassifier`.
-- `ANN` uses `TwoPhaseANNModel`, which is currently a placeholder.
+- `Linear` uses `sklearn.preprocessing.StandardScaler` followed by `sklearn.linear_model.Ridge`; set its regularization strength with `LinearModelConfig(alpha=...)`.
+- `XGBoost` uses `xgboost.XGBRegressor`.
+- `ANN` uses `TwoPhaseANNModel`.
 
-Training labels for `Linear` and `XGBoost` are converted from numeric labels to discrete classes before fitting:
+Evaluation labels and predictions are converted from numeric labels to discrete classes for F1 scoring:
 
 - values `< 0.5` become `0`, good
 - values `>= 0.5` and `< 1.5` become `1`, medium
@@ -116,6 +148,7 @@ Training labels for `Linear` and `XGBoost` are converted from numeric labels to 
 ## Model Evaluation
 
 Evaluation is implemented in `models/model_build.py` by `evaluate_model`.
+The evaluation pipeline uses `crossvalidate_model` to train and evaluate one configured model across repeated stratified splits for one test case.
 
 For each trained model, the pipeline calls:
 
@@ -143,10 +176,12 @@ Class-wise F1 uses `zero_division=0`, so a missing or unpredicted class receives
 
 Pipeline logging is configured in `pipeline_logging.py` and writes structured event messages to stdout.
 
-The current logs include:
+The current logs include (if not commented out):
 
 - `testcase_started`: test-case id plus manual and OSM row counts
 - `model_data_used`: train, validation, and test row counts for each model/test-case pair
+- `model_evaluated`: per-split evaluation metrics for each model/test-case pair
+- `cross_val_performance`: averaged evaluation metrics across all repeated splits for each model/test-case pair
 
 ## Current Outputs
 
@@ -155,10 +190,9 @@ The pipeline can write reusable feature datasets to:
 - `data/molewa/model_building/feature_ds/osm`
 - `data/molewa/model_building/feature_ds/manual`
 
-Evaluation metrics are currently returned from `evaluate_model`, but `run_model_pipeline.py` does not yet persist or log them.
+Evaluation metrics are currently returned from `evaluate_model` and logged by `model_evaluation_pipeline.py`, but they are not yet persisted to disk.
 
 ## Known Limitations
 
-- `TwoPhaseANNModel` is still a placeholder and does not implement `predict`, so evaluation will fail for `ANN` until the model is implemented.
 - Model metrics are calculated but not saved to disk.
-- Experiment configuration is currently hard-coded in `run_model_pipeline.py`.
+- The default runnable example is currently defined in `model_evaluation_pipeline.py`.
