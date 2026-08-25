@@ -22,7 +22,7 @@ def run_experiment(
     data_config: DataConfig,
     experiment_config: ExperimentConfig,
     logger: logging.Logger | None = None,
-) -> None:
+) -> dict[str, dict[str, CrossValidationPerformance]]:
     """Load feature datasets and run one model evaluation experiment."""
     if logger is None:
         logger = configure_pipeline_logging()
@@ -33,10 +33,16 @@ def run_experiment(
         experiment_config.test_cases,
         experiment_config.ds_version,
     )
-    for test_case in test_cases:
-        log_testcase_started(logger, test_case)
-        for model_str in experiment_config.models:
+    performance_by_model_test_case: dict[str, dict[str, CrossValidationPerformance]] = {}
+    for model_str in experiment_config.models:
+        if model_str not in performance_by_model_test_case:
+            performance_by_model_test_case[model_str] = {}
+
+        for test_case in test_cases:
+            log_testcase_started(logger, test_case)
             cross_val_performance = crossvalidate_model(model_str, test_case, experiment_config, logger)
+            performance_by_model_test_case[model_str][test_case.case_id] = cross_val_performance
+    return performance_by_model_test_case
 
 def crossvalidate_model(model_str:str, test_case:DataTestCase, experiment_config:ExperimentConfig, logger: logging.Logger) -> CrossValidationPerformance:
     """Train and evaluate one model across repeated stratified splits for one test case."""
@@ -45,10 +51,10 @@ def crossvalidate_model(model_str:str, test_case:DataTestCase, experiment_config
     for test_case_model_data in stratified_shuffle_split_datasets:
         model = setup_model(model_str, experiment_config)
         model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
-        log_model_data_used(logger, test_case.case_id, model_str, model_data)
+        #log_model_data_used(logger, test_case.case_id, model_str, model_data)
         trained_model = train_model(model, model_data)
         run_performance = evaluate_model(trained_model, model_data)
-        log_model_metrics(logger, test_case.case_id, model_str, asdict(run_performance))
+        #log_model_metrics(logger, test_case.case_id, model_str, asdict(run_performance))
         cross_val_performance.add_performance(run_performance)
     log_cross_val_performance(logger, test_case.case_id, model_str, cross_val_performance)
     return cross_val_performance
@@ -80,7 +86,7 @@ def example() -> None:
             layer_num_first_round=10,
             layer_num_second_round=3,
         ),
-        linear_model_config=LinearModelConfig(),
+        linear_model_config=LinearModelConfig(alpha=1.0),
         xgb_model_config=XGBoostModelConfig()
     )
 

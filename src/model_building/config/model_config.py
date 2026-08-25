@@ -17,8 +17,7 @@ class ANNModelConfig:
 @dataclass(frozen=True)
 class LinearModelConfig:
     """Hyperparameters for the linear baseline model."""
-
-    pass
+    alpha: float
 
 
 @dataclass(frozen=True)

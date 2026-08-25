@@ -2,6 +2,7 @@ from dataclasses import asdict
 import logging
 import sys
 
+from src.experiments.result_types import RidgeOptimisationResult
 from src.model_building.data.data_test_cases import DataTestCase
 from src.model_building.data.model_data import ModelData
 from src.model_building.models.metrics import CrossValidationPerformance
@@ -78,4 +79,43 @@ def log_cross_val_performance(
         testcase_id,
         model_name,
         asdict(cross_val_performance.get_final_performance()),
+    )
+
+def log_ridge_optimisation_summary(
+    logger: logging.Logger,
+    results: list[RidgeOptimisationResult],
+) -> None:
+    """Log the most important aggregate performance stats for one ridge optimisation run."""
+    if not results:
+        logger.info("event=ridge_optimisation_summary datasets_tested=0 model_runs_tested=0")
+        return
+
+    best_mae_result = min(results, key=lambda result: result.performance.mae)
+    best_f1_result = max(results, key=lambda result: result.performance.f1_macro)
+    mae_scores = [result.performance.mae for result in results]
+    f1_scores = [result.performance.f1_macro for result in results]
+    alpha_values = sorted({result.alpha for result in results})
+    testcase_ids = {result.testcase_id for result in results}
+
+    logger.info(
+        (
+            "event=ridge_optimisation_summary "
+            "datasets_tested=%s model_runs_tested=%s alphas_tested=%s "
+            "best_mae=%s best_mae_testcase_id=%s best_mae_alpha=%s best_mae_metrics=%s "
+            "best_f1_macro=%s best_f1_testcase_id=%s best_f1_alpha=%s best_f1_metrics=%s "
+            "mean_mae=%s mean_f1_macro=%s"
+        ),
+        len(testcase_ids),
+        len(results),
+        len(alpha_values),
+        best_mae_result.performance.mae,
+        best_mae_result.testcase_id,
+        best_mae_result.alpha,
+        asdict(best_mae_result.performance),
+        best_f1_result.performance.f1_macro,
+        best_f1_result.testcase_id,
+        best_f1_result.alpha,
+        asdict(best_f1_result.performance),
+        float(np.mean(mae_scores)),
+        float(np.mean(f1_scores)),
     )

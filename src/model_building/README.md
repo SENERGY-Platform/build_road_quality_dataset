@@ -38,7 +38,7 @@ experiment_config = ExperimentConfig(
     features=["vibration_x", "vibration_y", "vibration_z", "speed"],
     models=["Linear", "XGBoost"],
     test_set_percentage=0.3,
-    linear_model_config=LinearModelConfig(),
+    linear_model_config=LinearModelConfig(alpha=1.0),
     xgb_model_config=XGBoostModelConfig(),
 )
 
@@ -135,11 +135,11 @@ Supported model names in `ExperimentConfig.models` are:
 
 Current training behavior:
 
-- `Linear` uses `sklearn.linear_model.Ridge`.
+- `Linear` uses `sklearn.preprocessing.StandardScaler` followed by `sklearn.linear_model.Ridge`; set its regularization strength with `LinearModelConfig(alpha=...)`.
 - `XGBoost` uses `xgboost.XGBRegressor`.
 - `ANN` uses `TwoPhaseANNModel`.
 
-Training labels for `Linear` and `XGBoost` are converted from numeric labels to discrete classes before fitting:
+Evaluation labels and predictions are converted from numeric labels to discrete classes for F1 scoring:
 
 - values `< 0.5` become `0`, good
 - values `>= 0.5` and `< 1.5` become `1`, medium
@@ -176,7 +176,7 @@ Class-wise F1 uses `zero_division=0`, so a missing or unpredicted class receives
 
 Pipeline logging is configured in `pipeline_logging.py` and writes structured event messages to stdout.
 
-The current logs include:
+The current logs include (if not commented out):
 
 - `testcase_started`: test-case id plus manual and OSM row counts
 - `model_data_used`: train, validation, and test row counts for each model/test-case pair
