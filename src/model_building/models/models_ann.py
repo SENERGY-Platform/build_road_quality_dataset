@@ -6,11 +6,29 @@ from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+
 class TwoPhaseANNModel:
-    def __init__(self, layer_num_first_round, layer_num_second_round, pretrain_max_epochs, finetune_max_epochs,
-                 early_stopping_patience, early_stopping_min_delta):
+    def __init__(
+        self,
+        layer_num_first_round,
+        layer_num_second_round,
+        pretrain_max_epochs,
+        finetune_max_epochs,
+        early_stopping_patience,
+        early_stopping_min_delta,
+        pretrain_learning_rate=0.001,
+        finetune_learning_rate=0.001,
+        batch_size=64,
+        dropout=0.0,
+        weight_decay=0.0,
+    ):
         self.layer_num_first_round = layer_num_first_round
         self.layer_num_second_round = layer_num_second_round
+        self.pretrain_learning_rate = pretrain_learning_rate
+        self.finetune_learning_rate = finetune_learning_rate
+        self.batch_size = batch_size
+        self.dropout = dropout
+        self.weight_decay = weight_decay
         self.pretrain_max_epochs = pretrain_max_epochs
         self.finetune_max_epochs = finetune_max_epochs
         self.early_stopping_patience = early_stopping_patience
@@ -33,7 +51,11 @@ class TwoPhaseANNModel:
         layers = []
         current_size = input_size
         for _ in range(self.layer_num_first_round):
-            layers.extend([nn.Linear(current_size, width), nn.ReLU()])
+            layers.extend([
+                nn.Linear(current_size, width),
+                nn.ReLU(),
+                nn.Dropout(p=self.dropout),
+            ])
             current_size = width
         return nn.Sequential(*layers), current_size
 
@@ -43,19 +65,28 @@ class TwoPhaseANNModel:
         current_size = input_size
         for _ in range(max(0, self.layer_num_second_round - 1)):
             next_size = max(8, current_size // 2)
-            layers.extend([nn.Linear(current_size, next_size), nn.ReLU()])
+            layers.extend([
+                nn.Linear(current_size, next_size),
+                nn.ReLU(),
+                nn.Dropout(p=self.dropout),
+            ])
             current_size = next_size
         layers.append(nn.Linear(current_size, 1))
         return nn.Sequential(*layers)
 
-    def loader(self, x, y, batch_size=64, shuffle=True):
+    def loader(self, x, y, batch_size=None, shuffle=True):
         x_tensor = torch.tensor(x, dtype=torch.float32)
         y_tensor = torch.tensor(y)
+        batch_size = self.batch_size if batch_size is None else batch_size
         return DataLoader(TensorDataset(x_tensor, y_tensor), batch_size=batch_size, shuffle=shuffle)
 
     def train(self, model, train_loader, val_loader, loss_function, epochs, learning_rate):
         # Train with validation-based early stopping.
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=learning_rate,
+            weight_decay=self.weight_decay,
+        )
         train_losses = []
         val_losses = []
         best_loss = float("inf")
@@ -107,7 +138,7 @@ class TwoPhaseANNModel:
             val_loader,
             nn.MSELoss(),
             self.pretrain_max_epochs,
-            0.001,
+            self.pretrain_learning_rate,
         )
 
     def validation_loss(self, model, loader, loss_function):
@@ -134,7 +165,7 @@ class TwoPhaseANNModel:
             val_loader,
             nn.MSELoss(),
             self.finetune_max_epochs,
-            0.001,
+            self.finetune_learning_rate,
         )
 
     def fit(self, model_data):

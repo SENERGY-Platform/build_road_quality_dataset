@@ -39,6 +39,11 @@ def main() -> None:
             val_set_percentage=0.2,
             layer_num_first_round=10,
             layer_num_second_round=3,
+            pretrain_learning_rate=0.001,
+            finetune_learning_rate=0.001,
+            batch_size=64,
+            dropout=0.0,
+            weight_decay=0.0,
         ),
         linear_model_config=LinearModelConfig(),
         xgb_model_config=XGBoostModelConfig()
