@@ -22,6 +22,16 @@ class LinearModelConfig:
 
 @dataclass(frozen=True)
 class XGBoostModelConfig:
-    """Hyperparameters for the XGBoost classifier."""
+    """Hyperparameters for the XGBoost regressor."""
 
-    pass
+    n_estimators: int = 100
+    learning_rate: float = 0.1
+    max_depth: int = 6
+    min_child_weight: float = 1.0
+    subsample: float = 1.0
+    colsample_bytree: float = 1.0
+    reg_lambda: float = 1.0
+
+    objective: str = "reg:squarederror"
+    tree_method = "hist"
+    random_state: int = 42

@@ -38,3 +38,34 @@ During the run, the shared model-building pipeline logs averaged cross-validatio
 - mean MAE and mean macro-F1 across all alpha-by-dataset runs
 
 Metrics are logged to stdout but are not persisted to disk.
+
+## XGBoost Hyperparameter Optimisation
+
+Run from the repository root:
+
+```bash
+python src/experiments/xgb_hp_optimisation.py
+```
+
+`xgb_hp_optimisation.py` evaluates the `XGBoost` model with `xgboost.XGBRegressor`. The script defines a discrete search space and samples 30 unique parameter combinations without replacement using `np.random.default_rng`.
+
+The search space is:
+
+- `n_estimators`: `100`, `200`, `400`, `800`
+- `learning_rate`: `0.03`, `0.05`, `0.1`, `0.2`
+- `max_depth`: `3`, `4`, `5`, `6`, `8`
+- `min_child_weight`: `1`, `3`, `5`, `10`, `20`
+- `subsample`: `0.7`, `0.85`, `1.0`
+- `colsample_bytree`: `0.7`, `0.85`, `1.0`
+- `reg_lambda`: `0.5`, `1.0`, `5.0`, `10.0`
+
+Each sampled combination is passed through `XGBoostModelConfig(...)`, into `ExperimentConfig.xgb_model_config`, and then into `XGBRegressor`.
+
+The configured experiment uses the same cases, cross-validation setup, and feature list as the ridge optimisation. During the run, the shared model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and parameter set. At the end, `log_xgb_optimisation_summary` logs:
+
+- number of unique dataset/test-cases tested
+- number of parameter-set-by-dataset model runs
+- number of parameter sets tested
+- best MAE, including testcase id, parameter set id, parameter values, and full metrics
+- best macro-F1, including testcase id, parameter set id, parameter values, and full metrics
+- mean MAE and mean macro-F1 across all parameter-set-by-dataset runs
