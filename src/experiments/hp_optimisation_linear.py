@@ -41,6 +41,7 @@ def run_ridge_optimisation() -> None:
     alpha_space = np.logspace(-5, 5, 30)
     for alpha in alpha_space:
         model_config = LinearModelConfig(alpha=float(alpha))
+        logger.info("event=ridge_parameter_selected alpha=%s", model_config.alpha)
         experiment_config = setup_experiment_config(model_config)
         experiment_results = run_experiment(data_config, experiment_config, logger)['Linear']
         run_results.extend(

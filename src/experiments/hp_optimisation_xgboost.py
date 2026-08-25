@@ -79,6 +79,11 @@ def run_xgb_optimisation() -> None:
     parameter_test_cases = sample_parameter_combinations(parameter_space, n_random_parameter_sets)
     for parameter_set_id, parameters in enumerate(parameter_test_cases):
         model_config = XGBoostModelConfig(**parameters)
+        logger.info(
+            "event=xgb_parameter_selected parameter_set_id=%s parameters=%s",
+            parameter_set_id,
+            parameters,
+        )
         experiment_config = setup_experiment_config(model_config)
         experiment_results = run_experiment(data_config, experiment_config, logger)['XGBoost']
 

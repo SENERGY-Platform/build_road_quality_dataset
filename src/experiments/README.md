@@ -7,7 +7,7 @@ This folder contains runnable experiment scripts that configure the model-buildi
 Run from the repository root:
 
 ```bash
-python src/experiments/linear_hp_optimisation.py
+python src/experiments/hp_optimisation_linear.py
 ```
 
 `linear_hp_optimisation.py` evaluates the `Linear` model, which is implemented as:
@@ -44,7 +44,7 @@ Metrics are logged to stdout but are not persisted to disk.
 Run from the repository root:
 
 ```bash
-python src/experiments/xgb_hp_optimisation.py
+python src/experiments/hp_optimisation_xgboost.py
 ```
 
 `xgb_hp_optimisation.py` evaluates the `XGBoost` model with `xgboost.XGBRegressor`. The script defines a discrete search space and samples 30 unique parameter combinations without replacement using `np.random.default_rng`.
