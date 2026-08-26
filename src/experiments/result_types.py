@@ -19,3 +19,13 @@ class XGBoostOptimisationResult:
     parameters: dict[str, int | float | str]
     testcase_id: str
     performance: ModelPerformance
+
+
+@dataclass(frozen=True)
+class ANNOptimisationResult:
+    """Final cross-validation result for one ANN parameter set and one dataset test case."""
+
+    parameter_set_id: int
+    parameters: dict[str, int | float]
+    testcase_id: str
+    performance: ModelPerformance
