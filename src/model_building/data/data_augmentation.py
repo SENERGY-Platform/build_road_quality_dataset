@@ -5,6 +5,7 @@ import pandas as pd
 
 
 VIBRATION_COLUMNS = ("vibration_x", "vibration_y", "vibration_z")
+VIBRATION_MAGNITUDE_COLUMN = "vibration_magnitude"
 SCORE_EXPONENTS = {
     "score_mild": 0.5,
     "score_standard": 1.0,
@@ -122,10 +123,11 @@ class VibrationAugmenter:
         vector = self.rng.normal(size=3)
         return vector / np.linalg.norm(vector)
 
-    # Keep existing derived vibration scores consistent after augmentation.
+    # Keep existing derived vibration features consistent after augmentation.
     def update_scores(self, row):
         present_scores = set(SCORE_EXPONENTS).intersection(row.index)
-        if not present_scores:
+        has_vibration_magnitude = VIBRATION_MAGNITUDE_COLUMN in row.index
+        if not present_scores and not has_vibration_magnitude:
             return
 
         magnitude = max(
@@ -133,6 +135,12 @@ class VibrationAugmenter:
             float(np.linalg.norm(row.loc[list(VIBRATION_COLUMNS)].to_numpy()))
             - GRAVITY,
         )
+        if has_vibration_magnitude:
+            row[VIBRATION_MAGNITUDE_COLUMN] = magnitude
+
+        if not present_scores:
+            return
+
         speed = float(row["speed"])
         for score_column in present_scores:
             exponent = SCORE_EXPONENTS[score_column]
