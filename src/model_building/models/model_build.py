@@ -66,6 +66,25 @@ def train_model(model: Model, model_data: ModelData) -> Model:
 
     else: raise ValueError(f"Unknown model: {type(model)}")
 
+def _calc_f1_scores(model_data: ModelData, predictions_continuous: pd.Series[float]) -> tuple[float, float, float, float]:
+    """Calculate f1 scores based on predictions continuous and labels."""
+    test_y_discrete = label_discrete_from_continuous(model_data.test_y)
+    predictions_discrete = label_discrete_from_continuous(predictions_continuous)
+    f1_good, f1_medium, f1_bad = f1_score(
+        test_y_discrete,
+        predictions_discrete,
+        labels=[0, 1, 2],
+        average=None,
+        zero_division=0,
+    )
+    f1_macro = f1_score(
+        test_y_discrete,
+        predictions_discrete,
+        labels=[0, 1, 2],
+        average="macro",
+        zero_division=0,
+    )
+    return f1_macro, f1_good, f1_medium, f1_bad
 
 def evaluate_model(
     model: Model,
@@ -94,23 +113,8 @@ def evaluate_model(
 
     predictions_cont = pd.Series(raw_predictions,index=model_data.test_y.index,)
     score_mae = mean_absolute_error(model_data.test_y, predictions_cont)
+    f1_macro, f1_good, f1_medium, f1_bad = _calc_f1_scores(model_data, predictions_cont)
 
-    test_y_discrete = label_discrete_from_continuous(model_data.test_y)
-    predictions_discrete = label_discrete_from_continuous(predictions_cont)
-    f1_good, f1_medium, f1_bad = f1_score(
-        test_y_discrete,
-        predictions_discrete,
-        labels=[0, 1, 2],
-        average=None,
-        zero_division=0,
-    )
-    f1_macro = f1_score(
-        test_y_discrete,
-        predictions_discrete,
-        labels=[0, 1, 2],
-        average="macro",
-        zero_division=0,
-    )
     performance = ModelPerformance(
         mae=score_mae,
         f1_macro=f1_macro,
