@@ -5,7 +5,9 @@ from src.model_building.config.experiment_config import ExperimentConfig
 from src.model_building.config.model_config import LinearModelConfig
 from src.model_building.data.data_loader import DataConfig
 from src.model_building.model_evaluation_pipeline import run_experiment
-from src.model_building.pipeline_logging import configure_pipeline_logging, log_ridge_optimisation_summary
+from src.model_building.logging.pipeline_logging import configure_pipeline_logging, log_ridge_optimisation_summary
+from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_SET_NAME, FEATURES, CROSS_VALIDATION_K,
+                                           TEST_SET_PERCENTAGE)
 
 
 def setup_data_config() -> DataConfig:
@@ -16,23 +18,23 @@ def setup_data_config() -> DataConfig:
         skip_feature_build_if_exists=True,
     )
 
-def setup_experiment_config(linear_model_config: LinearModelConfig) -> ExperimentConfig:
+def setup_experiment_config(linear_model_config: LinearModelConfig, test_cases:list[str], all_osm:bool) -> ExperimentConfig:
     return ExperimentConfig(
-        experiment_name="ridge_optimisation_abc",
-        test_cases=['A', 'B', 'C'],
+        experiment_name=EXPERIMENT_NAME,
+        test_cases=test_cases,
         # True uses all available data vs False equals osm train data to available manual data
-        case_b_all_osm_data=False,
-        case_c_all_osm_data=False,
-        cross_validation_k=5,
-        ds_version="v1.0",
-        features=["vibration_x", "vibration_y", "vibration_z", "speed", "vibration_magnitude",
-                  "score_mild", "score_standard", "score_strict"],
+        case_b_all_osm_data=all_osm,
+        case_c_all_osm_data=all_osm,
+        cross_validation_k=CROSS_VALIDATION_K,
+        ds_version=DS_VERSION,
+        feature_set_name=FEATURE_SET_NAME,
+        features=FEATURES,
         models=['Linear'],
-        test_set_percentage=0.3,
+        test_set_percentage=TEST_SET_PERCENTAGE,
         linear_model_config=linear_model_config,
     )
 
-def run_ridge_optimisation() -> None:
+def run_ridge_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
     """Run the default example model evaluation experiment."""
     data_config = setup_data_config()
     logger = configure_pipeline_logging()
@@ -42,7 +44,7 @@ def run_ridge_optimisation() -> None:
     for alpha in alpha_space:
         model_config = LinearModelConfig(alpha=float(alpha))
         logger.info("event=ridge_parameter_selected alpha=%s", model_config.alpha)
-        experiment_config = setup_experiment_config(model_config)
+        experiment_config = setup_experiment_config(model_config, test_cases, use_all_osm)
         experiment_results = run_experiment(data_config, experiment_config, logger)['Linear']
         run_results.extend(
             RidgeOptimisationResult(
@@ -56,4 +58,5 @@ def run_ridge_optimisation() -> None:
     log_ridge_optimisation_summary(logger, run_results)
 
 if __name__ == "__main__":
-    run_ridge_optimisation()
+    run_ridge_optimisation(['A', 'B', 'C'], True)
+    run_ridge_optimisation(['B', 'C'], False)

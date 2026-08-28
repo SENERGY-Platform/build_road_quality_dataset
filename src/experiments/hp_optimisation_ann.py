@@ -7,7 +7,9 @@ from src.model_building.config.experiment_config import ExperimentConfig
 from src.model_building.config.model_config import ANNModelConfig
 from src.model_building.data.data_loader import DataConfig
 from src.model_building.model_evaluation_pipeline import run_experiment
-from src.model_building.pipeline_logging import configure_pipeline_logging, log_ann_optimisation_summary
+from src.model_building.logging.pipeline_logging import configure_pipeline_logging, log_ann_optimisation_summary
+from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_SET_NAME, FEATURES, CROSS_VALIDATION_K,
+                                           TEST_SET_PERCENTAGE)
 
 
 def setup_data_config() -> DataConfig:
@@ -19,19 +21,19 @@ def setup_data_config() -> DataConfig:
     )
 
 
-def setup_experiment_config(ann_model_config: ANNModelConfig) -> ExperimentConfig:
+def setup_experiment_config(ann_model_config: ANNModelConfig, test_cases:list[str], all_osm:bool) -> ExperimentConfig:
     return ExperimentConfig(
-        experiment_name="ann_optimisation_abc",
-        test_cases=['A', 'B', 'C'],
+        experiment_name=EXPERIMENT_NAME,
+        test_cases=test_cases,
         # True uses all available data vs False equals osm train data to available manual data
-        case_b_all_osm_data=False,
-        case_c_all_osm_data=False,
-        cross_validation_k=5,
-        ds_version="v1.0",
-        features=["vibration_x", "vibration_y", "vibration_z", "speed", "vibration_magnitude",
-                  "score_mild", "score_standard", "score_strict"],
+        case_b_all_osm_data=all_osm,
+        case_c_all_osm_data=all_osm,
+        cross_validation_k=CROSS_VALIDATION_K,
+        ds_version=DS_VERSION,
+        feature_set_name=FEATURE_SET_NAME,
+        features=FEATURES,
         models=['ANN'],
-        test_set_percentage=0.3,
+        test_set_percentage=TEST_SET_PERCENTAGE,
         ann_model_config=ann_model_config,
     )
 
@@ -58,7 +60,7 @@ def sample_parameter_combinations(
     return [all_combinations[index] for index in selected_indices]
 
 
-def run_ann_optimisation() -> None:
+def run_ann_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
     """Run randomized ANN hyperparameter optimisation across configured datasets."""
     data_config = setup_data_config()
     logger = configure_pipeline_logging()
@@ -85,7 +87,7 @@ def run_ann_optimisation() -> None:
             parameter_set_id,
             parameters,
         )
-        experiment_config = setup_experiment_config(model_config)
+        experiment_config = setup_experiment_config(model_config, test_cases, use_all_osm)
         experiment_results = run_experiment(data_config, experiment_config, logger)['ANN']
 
         run_results.extend(
@@ -102,4 +104,5 @@ def run_ann_optimisation() -> None:
 
 
 if __name__ == '__main__':
-    run_ann_optimisation()
+    run_ann_optimisation(['A', 'B', 'C'], True)
+    run_ann_optimisation(['B', 'C'], False)

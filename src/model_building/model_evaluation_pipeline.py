@@ -81,6 +81,7 @@ def example() -> None:
         case_c_all_osm_data=False,
         cross_validation_k=10,
         ds_version="v1.0",
+        feature_set_name="raw_features",
         features=["vibration_x", "vibration_y", "vibration_z", "speed"], # vibration_magnitude, score_mild, score_standard, score_strict
         models=['Linear','XGBoost'],
         test_set_percentage=0.3,

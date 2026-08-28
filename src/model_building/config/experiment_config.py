@@ -14,6 +14,7 @@ class ExperimentConfig:
     cross_validation_k: int
 
     ds_version: str
+    feature_set_name: str
     features: list[str]
     models: list[str] # 'ANN', Linear, XGBoost ..
     test_set_percentage: float # all models get the same test set - if a model uses validation it is later split of the training set
