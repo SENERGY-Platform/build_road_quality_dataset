@@ -1,4 +1,3 @@
-from dataclasses import asdict
 import logging
 
 from src.model_building.config.model_config import XGBoostModelConfig, LinearModelConfig, ANNModelConfig
@@ -45,15 +44,19 @@ def run_experiment(
     return performance_by_model_test_case
 
 def crossvalidate_model(model_str:str, test_case:DataTestCase, experiment_config:ExperimentConfig, logger: logging.Logger) -> CrossValidationPerformance:
-    """Train and evaluate one model across repeated stratified splits for one test case."""
+    """Train and evaluate a fresh model across each stratified split.
+
+    Each split builds model-specific training/validation data, calls
+    `evaluate_model` to fit and score the model, then adds the resulting
+    quality and runtime metrics to the cross-validation aggregate.
+    """
     stratified_shuffle_split_datasets = build_stratified_shuffle_split_datasets(test_case, experiment_config)
     cross_val_performance = CrossValidationPerformance()
     for test_case_model_data in stratified_shuffle_split_datasets:
         model = setup_model(model_str, experiment_config)
         model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
         #log_model_data_used(logger, test_case.case_id, model_str, model_data)
-        trained_model = train_model(model, model_data)
-        run_performance = evaluate_model(trained_model, model_data)
+        trained_model, run_performance = evaluate_model(model, model_data)
         #log_model_metrics(logger, test_case.case_id, model_str, asdict(run_performance))
         cross_val_performance.add_performance(run_performance)
     log_cross_val_performance(logger, test_case.case_id, model_str, cross_val_performance)

@@ -150,19 +150,24 @@ Evaluation labels and predictions are converted from numeric labels to discrete 
 Evaluation is implemented in `models/model_build.py` by `evaluate_model`.
 The evaluation pipeline uses `crossvalidate_model` to train and evaluate one configured model across repeated stratified splits for one test case.
 
-For each trained model, the pipeline calls:
+For each split, the pipeline creates a fresh model with `setup_model`, prepares validation data when needed with `update_model_data_for_validation`, and then calls:
 
 ```python
-metrics = evaluate_model(trained_model, model_data)
+trained_model, performance = evaluate_model(model, model_data)
 ```
 
-The evaluator predicts on `model_data.test_x`, where the test rows come from the held-out manual dataset. It returns:
+`evaluate_model` now owns the fit-and-score step: it trains the supplied model with `train_model`, measures training time, predicts on `model_data.test_x`, measures inference time, and returns both the fitted model and its `ModelPerformance`. The test rows come from the held-out manual dataset.
+
+`ModelPerformance` contains:
 
 - `mae`: mean absolute error between `model_data.test_y` and the raw numeric predictions.
 - `f1_macro`: macro-average F1 across the three road-quality classes.
 - `f1_good`: F1 for class `0`, good.
 - `f1_medium`: F1 for class `1`, medium.
 - `f1_bad`: F1 for class `2`, bad.
+- `train_time_s`: wall-clock seconds spent fitting one model split, measured around `train_model` inside `evaluate_model`.
+- `inference_time_ms_per_sample`: wall-clock prediction time per test sample, measured around `model.predict` in `evaluate_model`.
+- `inference_n_samples`: number of test samples used for the inference timing measurement.
 
 For F1 metrics, both the true test labels and predictions are converted to discrete classes with `label_discrete_from_continuous`:
 
@@ -171,6 +176,8 @@ For F1 metrics, both the true test labels and predictions are converted to discr
 - values `>= 1.5` become `2`, bad
 
 Class-wise F1 uses `zero_division=0`, so a missing or unpredicted class receives an F1 score of `0` instead of raising a warning.
+
+Cross-validation returns the mean of the score metrics and `train_time_s` across repeated splits. `inference_time_ms_per_sample` is averaged with `inference_n_samples` as weights, and the final `inference_n_samples` is the total number of timed predictions across all splits.
 
 ## Logging
 

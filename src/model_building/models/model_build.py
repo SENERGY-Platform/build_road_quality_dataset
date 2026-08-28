@@ -1,4 +1,5 @@
 from dataclasses import asdict, replace
+import time
 
 import pandas as pd
 from xgboost import XGBRegressor
@@ -66,18 +67,34 @@ def train_model(model: Model, model_data: ModelData) -> Model:
     else: raise ValueError(f"Unknown model: {type(model)}")
 
 
-def evaluate_model(model: Model, model_data: ModelData) -> ModelPerformance:
-    """Evaluate predictions on the held-out manual test set.
+def evaluate_model(
+    model: Model,
+    model_data: ModelData,
+) -> tuple[Model, ModelPerformance]:
+    """Train a model, score it on the held-out manual test set, and return both.
+
+    Training time is measured around `train_model`. Inference time is measured
+    around `model.predict(model_data.test_x)` and reported as milliseconds per
+    test sample, together with the number of samples timed.
 
     MAE is calculated on the numeric label scale. F1 metrics are calculated
     after converting both true labels and predictions to the discrete road
     quality classes: 0=good, 1=medium, and 2=bad.
     """
-    predictions_cont = pd.Series(
-        model.predict(model_data.test_x),
-        index=model_data.test_y.index,
-    )
+    train_start = time.perf_counter()
+    trained_model = train_model(model, model_data)
+    train_time_s = time.perf_counter() - train_start
+
+    inference_start = time.perf_counter()
+    raw_predictions = model.predict(model_data.test_x)
+    inference_time_s = time.perf_counter() - inference_start
+
+    inference_n_samples = len(model_data.test_x.index)
+    inference_time_ms_per_sample = (inference_time_s * 1000) / inference_n_samples
+
+    predictions_cont = pd.Series(raw_predictions,index=model_data.test_y.index,)
     score_mae = mean_absolute_error(model_data.test_y, predictions_cont)
+
     test_y_discrete = label_discrete_from_continuous(model_data.test_y)
     predictions_discrete = label_discrete_from_continuous(predictions_cont)
     f1_good, f1_medium, f1_bad = f1_score(
@@ -94,11 +111,15 @@ def evaluate_model(model: Model, model_data: ModelData) -> ModelPerformance:
         average="macro",
         zero_division=0,
     )
-
-    return ModelPerformance(
+    performance = ModelPerformance(
         mae=score_mae,
         f1_macro=f1_macro,
         f1_good=f1_good,
         f1_medium=f1_medium,
         f1_bad=f1_bad,
+        train_time_s=train_time_s,
+        inference_time_ms_per_sample=inference_time_ms_per_sample,
+        inference_n_samples=inference_n_samples,
     )
+
+    return trained_model, performance
