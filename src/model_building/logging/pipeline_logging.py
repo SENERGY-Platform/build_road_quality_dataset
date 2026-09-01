@@ -53,7 +53,7 @@ def log_model_data_used(logger: logging.Logger, testcase_id: str, model_name: st
         ),
         testcase_id,
         model_name,
-        model_data.test_case_origin,
+        model_data.test_case_id,
         model_data.random_state,
         len(model_data.manual_train_y.index),
         len(model_data.osm_train_y.index),

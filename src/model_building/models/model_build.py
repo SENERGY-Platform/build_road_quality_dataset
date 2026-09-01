@@ -66,7 +66,7 @@ def train_model(model: Model, model_data: ModelData) -> Model:
 
     else: raise ValueError(f"Unknown model: {type(model)}")
 
-def _calc_f1_scores(model_data: ModelData, predictions_continuous: pd.Series[float]) -> tuple[float, float, float, float]:
+def _calc_f1_scores(model_data: ModelData, predictions_continuous: pd.Series) -> tuple[float, float, float, float]:
     """Calculate f1 scores based on predictions continuous and labels."""
     test_y_discrete = label_discrete_from_continuous(model_data.test_y)
     predictions_discrete = label_discrete_from_continuous(predictions_continuous)

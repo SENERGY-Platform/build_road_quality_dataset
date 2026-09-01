@@ -17,7 +17,7 @@ python src/experiments/hp_optimisation_linear.py
 
 The script tests 30 `alpha` values from `1e-5` to `1e5` with `np.logspace(-5, 5, 30)`. Each value is passed through `LinearModelConfig(alpha=...)`, into `ExperimentConfig.linear_model_config`, and then into the inner `Ridge` estimator.
 
-The configured experiment uses cases `A`, `B`, and `C`, five repeated stratified splits, and these input features:
+The script runs one experiment per case/OSM-size setting: `A` with no OSM data, `B` with all and limited OSM data, and `C` with all and limited OSM data. Each experiment uses five repeated stratified splits and these input features:
 
 - `vibration_x`
 - `vibration_y`
@@ -61,7 +61,7 @@ The search space is:
 
 Each sampled combination is passed through `XGBoostModelConfig(...)`, into `ExperimentConfig.xgb_model_config`, and then into `XGBRegressor`.
 
-The configured experiment uses the same cases, cross-validation setup, and feature list as the ridge optimisation. During the run, the shared model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and parameter set. At the end, `log_xgb_optimisation_summary` logs:
+The configured experiments use the same case/OSM-size settings, cross-validation setup, and feature list as the ridge optimisation. During the run, the shared model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and parameter set. At the end, `log_xgb_optimisation_summary` logs:
 
 - number of unique dataset/test-cases tested
 - number of parameter-set-by-dataset model runs

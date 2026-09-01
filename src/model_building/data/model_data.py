@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -9,7 +8,7 @@ DEFAULT_SHUFFLE_RANDOM_STATE = 42
 @dataclass(frozen=True)
 class ModelData:
     """Container for train, test, and optional validation splits used by models."""
-    test_case_origin: str
+    test_case_id: str
     random_state: int
 
     manual_train_x: pd.DataFrame
@@ -29,9 +28,9 @@ class ModelData:
 
     @staticmethod
     def _combine_and_shuffle_xy(
-        x_parts: list[pd.DataFrame],
-        y_parts: list[pd.Series],
-        random_state: int = DEFAULT_SHUFFLE_RANDOM_STATE,
+            x_parts: list[pd.DataFrame],
+            y_parts: list[pd.Series],
+            random_state: int = DEFAULT_SHUFFLE_RANDOM_STATE,
     ) -> tuple[pd.DataFrame, pd.Series]:
         """Combine matching feature/label parts and optionally shuffle them together."""
         pairs = [

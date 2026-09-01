@@ -30,11 +30,11 @@ data_config = DataConfig(
 
 experiment_config = ExperimentConfig(
     experiment_name="my_experiment",
-    test_cases=["A", "B", "C"],
-    case_b_all_osm_data=False,
-    case_c_all_osm_data=False,
+    test_case="B",
+    all_osm_data=False,
     cross_validation_k=10,
     ds_version="v1.0",
+    feature_set_name="raw_features",
     features=["vibration_x", "vibration_y", "vibration_z", "speed"],
     models=["Linear", "XGBoost"],
     test_set_percentage=0.3,
@@ -99,13 +99,13 @@ The score formula removes gravity from vibration magnitude and normalizes by spe
 
 Experiment cases are created by `data/data_test_cases.py` from the loaded manual and OSM feature datasets.
 
-The configured cases are:
+Each `ExperimentConfig` runs one configured case:
 
 - Case A: manual data only
 - Case B: manual data plus OSM data
 - Case C: OSM data only for training, with manual data still used for testing
 
-Each generated case records the manual dataset id, OSM dataset id when present, dataset version, and parsed dataset parameters. Case B and Case C are generated for every manual/OSM dataset pairing.
+Each generated dataset combination records the manual dataset id, OSM dataset id when present, dataset version, and parsed dataset parameters. Case B and Case C are generated for every manual/OSM dataset pairing within the selected case.
 
 ## Data Splitting
 
@@ -119,7 +119,7 @@ The held-out test set always comes from the manual labelled dataset:
 
 Manual data is split repeatedly with `train_test_split`, using `test_set_percentage` from `ExperimentConfig`. Each split is stratified by discrete label category and uses a different `random_state`.
 
-For Case B and Case C, OSM training rows are sampled to match the manual training label distribution. By default, the OSM training sample size matches the manual training size. Set `case_b_all_osm_data=True` or `case_c_all_osm_data=True` to request all available OSM rows for that case type, subject to the available class distribution.
+For Case B and Case C, OSM training rows are sampled to match the manual training label distribution. By default, the OSM training sample size matches the manual training size. Set `all_osm_data=True` to request all available OSM rows for the configured case type, subject to the available class distribution. For Case A, set `all_osm_data=None`.
 
 Models that need validation data split validation rows from the training data only. The held-out manual test set is not used for validation.
 

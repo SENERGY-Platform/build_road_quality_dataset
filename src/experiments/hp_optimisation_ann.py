@@ -21,13 +21,11 @@ def setup_data_config() -> DataConfig:
     )
 
 
-def setup_experiment_config(ann_model_config: ANNModelConfig, test_cases:list[str], all_osm:bool) -> ExperimentConfig:
+def setup_experiment_config(ann_model_config: ANNModelConfig, test_case: str, all_osm: bool | None) -> ExperimentConfig:
     return ExperimentConfig(
         experiment_name=EXPERIMENT_NAME,
-        test_cases=test_cases,
-        # True uses all available data vs False equals osm train data to available manual data
-        case_b_all_osm_data=all_osm,
-        case_c_all_osm_data=all_osm,
+        test_case=test_case,
+        all_osm_data=all_osm,  # True uses all available data vs False equals osm train data to available manual data
         cross_validation_k=CROSS_VALIDATION_K,
         ds_version=DS_VERSION,
         feature_set_name=FEATURE_SET_NAME,
@@ -39,9 +37,9 @@ def setup_experiment_config(ann_model_config: ANNModelConfig, test_cases:list[st
 
 
 def sample_parameter_combinations(
-    parameter_space: dict[str, list[int | float]],
-    n_combinations: int,
-    random_state: int = 42,
+        parameter_space: dict[str, list[int | float]],
+        n_combinations: int,
+        random_state: int = 42,
 ) -> list[dict[str, int | float]]:
     """Draw random unique parameter combinations from a discrete search space."""
     parameter_names = list(parameter_space)
@@ -60,8 +58,8 @@ def sample_parameter_combinations(
     return [all_combinations[index] for index in selected_indices]
 
 
-def run_ann_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
-    """Run randomized ANN hyperparameter optimisation across configured datasets."""
+def run_ann_optimisation(test_case: str, use_all_osm: bool | None) -> None:
+    """Run randomised ANN hyperparameter optimisation across configured datasets."""
     data_config = setup_data_config()
     logger = configure_pipeline_logging()
     run_results: list[ANNOptimisationResult] = []
@@ -87,7 +85,7 @@ def run_ann_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
             parameter_set_id,
             parameters,
         )
-        experiment_config = setup_experiment_config(model_config, test_cases, use_all_osm)
+        experiment_config = setup_experiment_config(model_config, test_case, use_all_osm)
         experiment_results = run_experiment(data_config, experiment_config, logger)['ANN']
 
         run_results.extend(
@@ -104,5 +102,8 @@ def run_ann_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
 
 
 if __name__ == '__main__':
-    run_ann_optimisation(['A', 'B', 'C'], True)
-    run_ann_optimisation(['B', 'C'], False)
+    run_ann_optimisation('A', None)
+    run_ann_optimisation('B', True)
+    run_ann_optimisation('B', False)
+    run_ann_optimisation('C', True)
+    run_ann_optimisation('C', False)

@@ -11,6 +11,7 @@ from src.model_building.logging.pipeline_logging import configure_pipeline_loggi
 from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_SET_NAME, FEATURES, CROSS_VALIDATION_K,
                                            TEST_SET_PERCENTAGE)
 
+
 def setup_data_config() -> DataConfig:
     return DataConfig(
         osm_ds_dir="data/open_street_map/datasets",
@@ -20,13 +21,12 @@ def setup_data_config() -> DataConfig:
     )
 
 
-def setup_experiment_config(xgb_model_config: XGBoostModelConfig, test_cases:list[str], all_osm:bool) -> ExperimentConfig:
+def setup_experiment_config(xgb_model_config: XGBoostModelConfig, test_case: str,
+                            all_osm: bool | None) -> ExperimentConfig:
     return ExperimentConfig(
         experiment_name=EXPERIMENT_NAME,
-        test_cases=test_cases,
-        # True uses all available data vs False equals osm train data to available manual data
-        case_b_all_osm_data=all_osm,
-        case_c_all_osm_data=all_osm,
+        test_case=test_case,
+        all_osm_data=all_osm, # True uses all available data vs False equals osm train data to available manual data
         cross_validation_k=CROSS_VALIDATION_K,
         ds_version=DS_VERSION,
         feature_set_name=FEATURE_SET_NAME,
@@ -38,9 +38,9 @@ def setup_experiment_config(xgb_model_config: XGBoostModelConfig, test_cases:lis
 
 
 def sample_parameter_combinations(
-    parameter_space: dict[str, list[int | float]],
-    n_combinations: int,
-    random_state: int = 42,
+        parameter_space: dict[str, list[int | float]],
+        n_combinations: int,
+        random_state: int = 42,
 ) -> list[dict[str, int | float]]:
     """Draw random unique parameter combinations from a discrete search space."""
     parameter_names = list(parameter_space)
@@ -59,10 +59,10 @@ def sample_parameter_combinations(
     return [all_combinations[index] for index in selected_indices]
 
 
-def run_xgb_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
-    """Run randomized XGBoost hyperparameter optimisation across configured datasets."""
+def run_xgb_optimisation(test_case: str, use_all_osm: bool | None) -> None:
+    """Run randomised XGBoost hyperparameter optimisation across configured datasets."""
     data_config = setup_data_config()
-    logger = configure_pipeline_logging()
+    local_logger = configure_pipeline_logging()
     run_results: list[XGBoostOptimisationResult] = []
 
     # model hyper parameter exploration config
@@ -80,13 +80,13 @@ def run_xgb_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
     parameter_test_cases = sample_parameter_combinations(parameter_space, n_random_parameter_sets)
     for parameter_set_id, parameters in enumerate(parameter_test_cases):
         model_config = XGBoostModelConfig(**parameters)
-        logger.info(
+        local_logger.info(
             "event=xgb_parameter_selected parameter_set_id=%s parameters=%s",
             parameter_set_id,
             parameters,
         )
-        experiment_config = setup_experiment_config(model_config, test_cases, use_all_osm)
-        experiment_results = run_experiment(data_config, experiment_config, logger)['XGBoost']
+        experiment_config = setup_experiment_config(model_config, test_case, use_all_osm)
+        experiment_results = run_experiment(data_config, experiment_config, local_logger)['XGBoost']
 
         run_results.extend(
             XGBoostOptimisationResult(
@@ -98,9 +98,12 @@ def run_xgb_optimisation(test_cases: list[str], use_all_osm:bool) -> None:
             for data_test_case_id, cross_val_performance in experiment_results.items()
         )
 
-    log_xgb_optimisation_summary(logger, run_results)
+    log_xgb_optimisation_summary(local_logger, run_results)
 
 
 if __name__ == '__main__':
-    run_xgb_optimisation(['A', 'B', 'C'], True)
-    run_xgb_optimisation(['B', 'C'], False)
+    run_xgb_optimisation("A", None)
+    run_xgb_optimisation("B", True)
+    run_xgb_optimisation("B", False)
+    run_xgb_optimisation("C", True)
+    run_xgb_optimisation("C", False)
