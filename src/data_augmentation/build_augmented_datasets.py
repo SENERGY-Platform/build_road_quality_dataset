@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.model_building.data.data_augmentation import VibrationAugmenter
+from src.data_augmentation.data_augmentation import VibrationAugmenter
 
 
 AUGMENTATION_SEEDS = {
