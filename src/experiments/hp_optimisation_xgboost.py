@@ -93,9 +93,11 @@ def run_xgb_optimisation(test_case: str, use_all_osm: bool | None) -> None:
                 parameter_set_id=parameter_set_id,
                 parameters=parameters,
                 testcase_id=data_test_case_id,
-                performance=cross_val_performance.get_final_performance(),
+                performance=performance,
+                performance_std=performance_std,
             )
             for data_test_case_id, cross_val_performance in experiment_results.items()
+            for performance, performance_std in [cross_val_performance.get_final_performance()]
         )
 
     log_xgb_optimisation_summary(local_logger, run_results)

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.model_building.models.metrics import ModelPerformance
+from src.model_building.models.metrics import ModelPerformance, ModelPerformanceStd
 
 @dataclass(frozen=True)
 class RidgeOptimisationResult:
@@ -9,6 +9,7 @@ class RidgeOptimisationResult:
     alpha: float
     testcase_id: str
     performance: ModelPerformance
+    performance_std: ModelPerformanceStd
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,7 @@ class XGBoostOptimisationResult:
     parameters: dict[str, int | float | str]
     testcase_id: str
     performance: ModelPerformance
+    performance_std: ModelPerformanceStd
 
 
 @dataclass(frozen=True)
@@ -29,3 +31,4 @@ class ANNOptimisationResult:
     parameters: dict[str, int | float]
     testcase_id: str
     performance: ModelPerformance
+    performance_std: ModelPerformanceStd

@@ -80,11 +80,13 @@ def log_cross_val_performance(
     cross_val_performance: CrossValidationPerformance,
 ) -> None:
     """Log the final averaged performance across repeated stratified splits."""
+    performance, performance_std = cross_val_performance.get_final_performance()
     logger.info(
-        "event=cross_val_performance testcase_id=%s model=%s metrics=%s",
+        "event=cross_val_performance testcase_id=%s model=%s metrics=%s metrics_std=%s",
         testcase_id,
         model_name,
-        asdict(cross_val_performance.get_final_performance()),
+        asdict(performance),
+        asdict(performance_std),
     )
 
 def log_ridge_optimisation_summary(

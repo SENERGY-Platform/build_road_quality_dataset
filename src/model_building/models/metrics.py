@@ -24,6 +24,21 @@ class ModelPerformance:
     inference_time_ms_per_sample: float
     inference_n_samples: int
 
+
+@dataclass(frozen=True)
+class ModelPerformanceStd:
+    """Standard deviation of model quality and runtime metrics across CV splits."""
+
+    mae: float
+    f1_macro: float
+    f1_good: float
+    f1_medium: float
+    f1_bad: float
+    train_time_s: float
+    inference_time_ms_per_sample: float
+    inference_n_samples: float
+
+
 @dataclass
 class CrossValidationPerformance:
     """Collect and aggregate model performance across cross-validation splits."""
@@ -44,8 +59,8 @@ class CrossValidationPerformance:
     _models: list[Model] = field(default_factory=list)
     _used_data_sets: list[ModelData] = field(default_factory=list)
 
-    def get_final_performance(self):
-        """Return averaged score and runtime metrics across all collected splits."""
+    def get_final_performance(self) -> tuple[ModelPerformance, ModelPerformanceStd]:
+        """Return mean and standard deviation metrics across all collected splits."""
         inference_n_samples = sum(self._inference_n_samples)
         inference_time_ms_per_sample = float(
             np.average(
@@ -54,7 +69,7 @@ class CrossValidationPerformance:
             )
         )
 
-        return ModelPerformance(
+        performance = ModelPerformance(
             mae=float(np.mean(self._mae_scores)),
             f1_macro=float(np.mean(self._f1_macro_scores)),
             f1_good=float(np.mean(self._f1_good_scores)),
@@ -64,6 +79,19 @@ class CrossValidationPerformance:
             inference_time_ms_per_sample=inference_time_ms_per_sample,
             inference_n_samples=inference_n_samples,
         )
+
+        performance_std = ModelPerformanceStd(
+            mae=float(np.std(self._mae_scores)),
+            f1_macro=float(np.std(self._f1_macro_scores)),
+            f1_good=float(np.std(self._f1_good_scores)),
+            f1_medium=float(np.std(self._f1_medium_scores)),
+            f1_bad=float(np.std(self._f1_bad_scores)),
+            train_time_s=float(np.std(self._train_time_s_scores)),
+            inference_time_ms_per_sample=float(np.std(self._inference_time_ms_per_sample_scores)),
+            inference_n_samples=float(np.std(self._inference_n_samples)),
+        )
+
+        return performance, performance_std
 
     def add_performance(self, performance: ModelPerformance):
         """Add metrics from one cross-validation split."""
