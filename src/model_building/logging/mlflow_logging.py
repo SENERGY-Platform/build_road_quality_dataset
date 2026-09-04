@@ -437,6 +437,7 @@ class MlflowLogger:
         return {
             "best_trial_run_id": self.parent_run_config.best_trial_run_id,
             "best_trial_name": self.parent_run_config.best_trial_name,
+            "best_trial_number": self.parent_run_config.best_trial_number,
             "params": self._format_params(self.parent_run_config.get_best_params()),
             "model_params": self._format_params(self.parent_run_config.best_trial_model_params),
             "metrics": self.parent_run_config.best_trial_metrics,

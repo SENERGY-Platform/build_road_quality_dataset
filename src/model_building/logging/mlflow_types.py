@@ -58,6 +58,7 @@ class ParentRunConfig:
 
     best_trial_run_id: str | None
     best_trial_name: str | None
+    best_trial_number: int | None
     best_trial_params: dict[str, Any]
     best_trial_model_params: dict[str, Any]
     best_trial_metrics: dict[str, float]
@@ -76,6 +77,7 @@ class ParentRunConfig:
         self.run_type = "parent"
         self.best_trial_run_id = None
         self.best_trial_name = None
+        self.best_trial_number = None
         self.best_trial_params = {}
         self.best_trial_model_params = {}
         self.best_trial_metrics = {}
@@ -98,6 +100,8 @@ class ParentRunConfig:
             tags["best_trial_run_id"] = self.best_trial_run_id
         if self.best_trial_name is not None:
             tags["best_trial_name"] = self.best_trial_name
+        if self.best_trial_number is not None:
+            tags["best_trial_number"] = str(self.best_trial_number)
         return tags
 
     def get_best_params(self) -> dict[str, Any]:
@@ -124,6 +128,7 @@ class ParentRunConfig:
         """Persist the current best-trial summary on the parent config."""
         self.best_trial_run_id = trial_config.mlflow_run_id
         self.best_trial_name = trial_config.trial_name
+        self.best_trial_number = trial_config.trial_number
         self.best_trial_params = {
             **trial_config.get_dataset_params(),
             **trial_config.get_feature_params(),
@@ -153,8 +158,8 @@ class TrialRunConfig:
     dataset_case_group: str     # i.e. "case_a_manual_only", "case_b_osm_allpoints", "case_b_osm_limitedpoints"
     test_case_id: str           # i.e. {model}__{dataset_case_group}
     parameter_set_id: int       # specific counter id of which model hp combination it is
-    trial_name: str             # i.e. f"hp_{number of trial:03d}
-    trial_name_detailed: str    # i.e. f"hp_{parameter_set_id:03d}__{case_group}__{manual_ds_id}__{osm_ds_id}"
+    trial_number: int           # parent-local sequence counter for this started trial
+    trial_name: str             # i.e. f"hp_{parameter_set_id:03d}__{case_group}__{manual_ds_id}__{osm_ds_id}"
     run_type: str               # trial
 
     # mlflow meta data
@@ -192,8 +197,8 @@ class TrialRunConfig:
         self.dataset_case_group = parent_config.dataset_case_group
         self.test_case_id = test_case.case_id
         self.parameter_set_id = parameter_set_id
-        self.trial_name = f"hp_{trial_number:03d}__{test_case.case_id}"
-        self.trial_name_detailed = f"hp_{parameter_set_id:03d}__{test_case.case_id}"
+        self.trial_number = trial_number
+        self.trial_name = f"hp_{parameter_set_id:03d}__{test_case.case_id}"
         self.run_type = "trial"
 
         self.mlflow_parent_run_id = parent_config.mlflow_run_id
@@ -218,7 +223,7 @@ class TrialRunConfig:
             "dataset_case_group": self.dataset_case_group,
             "test_case_id": self.test_case_id,
             "parameter_set_id": str(self.parameter_set_id),
-            "trial_name_detailed": self.trial_name_detailed,
+            "trial_number": str(self.trial_number),
             "parent_run_id": self.mlflow_parent_run_id,
             "run_type": self.run_type,
             "run_started_at_utc": run_started_at_utc,
