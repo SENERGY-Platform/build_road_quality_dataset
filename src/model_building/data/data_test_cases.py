@@ -38,6 +38,13 @@ class DataTestCase:
     manual_ds_id: str | None
     manual_parameters: DataTestCaseManualParameters
 
+    def __post_init__(self) -> None:
+        """Fail fast if manual and OSM parameter namespaces are accidentally swapped."""
+        if not isinstance(self.manual_parameters, DataTestCaseManualParameters):
+            raise TypeError("manual_parameters must be DataTestCaseManualParameters.")
+        if not isinstance(self.osm_parameters, DataTestCaseOsmParameters):
+            raise TypeError("osm_parameters must be DataTestCaseOsmParameters.")
+
 
 MANUAL_PARAMETERS_MAP = {
     'radius': 'manual_radius',
@@ -75,7 +82,7 @@ def _get_scenario_a_cases(
     chosen_scenario_cases = []
     for manual_ds_id, manual_ds_df in feature_datasets['manual'].items():
         osm_parameters = _parse_none_case_ds_parameters('osm')
-        manual_parameters = _parse_ds_parameters(manual_ds_id)
+        manual_parameters = _parse_ds_parameters(manual_ds_id, mode='manual')
         chosen_scenario_cases.append(
             DataTestCase(
                 case_id=experiment_config.get_case_id(manual_ds_id=manual_ds_id, osm_ds_id='None'),
@@ -100,8 +107,8 @@ def _get_scenario_b_cases(
     chosen_scenario_cases = []
     for manual_ds_id, manual_ds_df in feature_datasets['manual'].items():
         for osm_ds_id, osm_ds_df in feature_datasets['osm'].items():
-            osm_parameters = _parse_ds_parameters(osm_ds_id)
-            manual_parameters = _parse_ds_parameters(manual_ds_id)
+            osm_parameters = _parse_ds_parameters(osm_ds_id, mode='osm')
+            manual_parameters = _parse_ds_parameters(manual_ds_id, mode='manual')
             chosen_scenario_cases.append(
                 DataTestCase(
                     case_id=experiment_config.get_case_id(manual_ds_id=manual_ds_id, osm_ds_id=osm_ds_id),
@@ -126,8 +133,8 @@ def _get_scenario_c_cases(
     chosen_scenario_cases = []
     for osm_ds_id, osm_ds_df in feature_datasets['osm'].items():
         for manual_ds_id, manual_ds_df in feature_datasets['manual'].items():
-            manual_parameters = _parse_ds_parameters(manual_ds_id)
-            osm_parameters = _parse_ds_parameters(osm_ds_id)
+            manual_parameters = _parse_ds_parameters(manual_ds_id, mode='manual')
+            osm_parameters = _parse_ds_parameters(osm_ds_id, mode='osm')
             chosen_scenario_cases.append(
                 DataTestCase(
                     case_id=experiment_config.get_case_id(manual_ds_id=manual_ds_id, osm_ds_id=osm_ds_id),
@@ -143,17 +150,18 @@ def _get_scenario_c_cases(
     return chosen_scenario_cases
 
 
-def _parse_ds_parameters(ds_id: str) -> DataTestCaseManualParameters | DataTestCaseOsmParameters:
+def _parse_ds_parameters(ds_id: str, mode: str) -> DataTestCaseManualParameters | DataTestCaseOsmParameters:
     """Parse manual or OSM dataset parameters from a normalized dataset identifier."""
-    id_contents = ds_id.split('.')[0].split('_')
-    mode = id_contents[0]
-    parameters = id_contents[2:]
+    if mode not in ['manual', 'osm']:
+        raise ValueError(f'Invalid mode: {mode} for dataset parameter parsing.')
+
+    parameters = ds_id.split('.')[0].split('_')
     p_mapping = MANUAL_PARAMETERS_MAP if mode == 'manual' else OSM_PARAMETERS_MAP
     parsed = {}
     for p_description in parameters:
         for p_name_short, p_name_long in p_mapping.items():
-            if p_name_short in p_description:
-                parsed[p_name_long] = p_description.split(p_name_short)[1]
+            if p_description.startswith(p_name_short):
+                parsed[p_name_long] = p_description[len(p_name_short):]
                 break
     parsed = parsed | {p: None for p in p_mapping.values() if p not in parsed}
     return DataTestCaseManualParameters(**parsed) if mode == 'manual' else DataTestCaseOsmParameters(**parsed)
