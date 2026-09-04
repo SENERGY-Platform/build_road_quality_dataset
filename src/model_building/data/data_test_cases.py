@@ -27,7 +27,7 @@ class DataTestCaseOsmParameters:
 @dataclass
 class DataTestCase:
     """One experiment dataset combination for a scenario A, B, or C run."""
-    case_id: str
+    case_id: str  # {case_group}__{manual_ds_id}__{osm_ds_id}
     ds_version: str
 
     osm_ds: pd.DataFrame | None
@@ -56,14 +56,14 @@ OSM_PARAMETERS_MAP = {
 def get_test_dataset_configurations(feature_datasets: dict[str, dict[str, pd.DataFrame]],
                                     experiment_config: ExperimentConfig) -> list[DataTestCase]:
     """Build all requested A/B/C dataset combinations from loaded feature datasets."""
-    if experiment_config.test_case == 'A':
+    if experiment_config.case_type == 'A':
         return _get_scenario_a_cases(feature_datasets, experiment_config)
-    elif experiment_config.test_case == 'B':
+    elif experiment_config.case_type == 'B':
         return _get_scenario_b_cases(feature_datasets, experiment_config)
-    elif experiment_config.test_case == 'C':
+    elif experiment_config.case_type == 'C':
         return _get_scenario_c_cases(feature_datasets, experiment_config)
     else:
-        raise ValueError(f'Unknown test case: {experiment_config.test_case}')
+        raise ValueError(f'Unknown test case: {experiment_config.case_type}')
 
 
 def _get_scenario_a_cases(

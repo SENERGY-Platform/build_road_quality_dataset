@@ -6,6 +6,22 @@ DEFAULT_SHUFFLE_RANDOM_STATE = 42
 
 
 @dataclass(frozen=True)
+class ModelDataSizeSummary:
+    """Source-aware row counts for model train, test, and validation splits."""
+
+    manual_train_size: int
+    osm_train_size: int
+    total_train_size: int
+
+    manual_test_size: int
+    osm_test_size: int
+    total_test_size: int
+
+    manual_val_size: int
+    osm_val_size: int
+    total_val_size: int
+
+@dataclass(frozen=True)
 class ModelData:
     """Container for train, test, and optional validation splits used by models."""
     test_case_id: str
@@ -81,3 +97,24 @@ class ModelData:
             [self.manual_val_y, self.osm_val_y],
         )
         return val_y
+
+    def get_dataset_sizes(self) -> ModelDataSizeSummary:
+        """Return source-aware row counts for all model-data splits."""
+        manual_train_size = len(self.manual_train_y.index)
+        osm_train_size = len(self.osm_train_y.index)
+        manual_test_size = len(self.test_y.index)
+        osm_test_size = 0
+        manual_val_size = len(self.manual_val_y.index)
+        osm_val_size = len(self.osm_val_y.index)
+
+        return ModelDataSizeSummary(
+            manual_train_size=manual_train_size,
+            osm_train_size=osm_train_size,
+            total_train_size=manual_train_size + osm_train_size,
+            manual_test_size=manual_test_size,
+            osm_test_size=osm_test_size,
+            total_test_size=manual_test_size + osm_test_size,
+            manual_val_size=manual_val_size,
+            osm_val_size=osm_val_size,
+            total_val_size=manual_val_size + osm_val_size,
+        )

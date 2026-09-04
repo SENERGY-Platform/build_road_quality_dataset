@@ -2,17 +2,19 @@ from itertools import product
 
 import numpy as np
 
+from src.experiments.mlflow_secret import MLFLOW_TRACKING_URI
 from src.experiments.result_types import XGBoostOptimisationResult
 from src.model_building.config.experiment_config import ExperimentConfig
 from src.model_building.config.model_config import XGBoostModelConfig
 from src.model_building.data.data_loader import DataConfig
+from src.model_building.logging.mlflow_logging import MlflowLogger
 from src.model_building.model_evaluation_pipeline import run_experiment
 from src.model_building.logging.pipeline_logging import configure_pipeline_logging, log_xgb_optimisation_summary
 from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_SET_NAME, FEATURES, CROSS_VALIDATION_K,
                                            TEST_SET_PERCENTAGE)
 
-
 def setup_data_config() -> DataConfig:
+    """Return the shared data-loading config for XGBoost optimisation runs."""
     return DataConfig(
         osm_ds_dir="data/open_street_map/datasets",
         manual_ds_dir="data/molewa/datasets",
@@ -20,20 +22,18 @@ def setup_data_config() -> DataConfig:
         skip_feature_build_if_exists=True,
     )
 
-
-def setup_experiment_config(xgb_model_config: XGBoostModelConfig, test_case: str,
-                            all_osm: bool | None) -> ExperimentConfig:
+def setup_experiment_config(test_case: str, all_osm: bool | None) -> ExperimentConfig:
+    """Return an experiment config before assigning XGBoost hyperparameters."""
     return ExperimentConfig(
         experiment_name=EXPERIMENT_NAME,
-        test_case=test_case,
+        case_type=test_case,
         all_osm_data=all_osm, # True uses all available data vs False equals osm train data to available manual data
         cross_validation_k=CROSS_VALIDATION_K,
         ds_version=DS_VERSION,
         feature_set_name=FEATURE_SET_NAME,
         features=FEATURES,
-        models=['XGBoost'],
+        model='XGBoost',
         test_set_percentage=TEST_SET_PERCENTAGE,
-        xgb_model_config=xgb_model_config,
     )
 
 
@@ -63,7 +63,6 @@ def run_xgb_optimisation(test_case: str, use_all_osm: bool | None) -> None:
     """Run randomised XGBoost hyperparameter optimisation across configured datasets."""
     data_config = setup_data_config()
     local_logger = configure_pipeline_logging()
-    run_results: list[XGBoostOptimisationResult] = []
 
     # model hyper parameter exploration config
     parameter_space = {
@@ -78,16 +77,29 @@ def run_xgb_optimisation(test_case: str, use_all_osm: bool | None) -> None:
     n_random_parameter_sets = 30
 
     parameter_test_cases = sample_parameter_combinations(parameter_space, n_random_parameter_sets)
+
+    experiment_config = setup_experiment_config(test_case, use_all_osm)
+    mlflow_logger = MlflowLogger(tracking_uri=MLFLOW_TRACKING_URI,
+                                 experiment_name=experiment_config.experiment_name,
+                                 model=experiment_config.model,
+                                 dataset_case_group=experiment_config.get_ds_case_group()).start_parent_run()
+
+    run_results: list[XGBoostOptimisationResult] = []
     for parameter_set_id, parameters in enumerate(parameter_test_cases):
-        model_config = XGBoostModelConfig(**parameters)
+        experiment_config = experiment_config.set_model_config(XGBoostModelConfig(**parameters))
         local_logger.info(
             "event=xgb_parameter_selected parameter_set_id=%s parameters=%s",
             parameter_set_id,
             parameters,
         )
-        experiment_config = setup_experiment_config(model_config, test_case, use_all_osm)
-        experiment_results = run_experiment(data_config, experiment_config, local_logger)['XGBoost']
 
+        experiment_results = run_experiment(
+            data_config,
+            experiment_config,
+            local_logger,
+            mlflow_logger,
+            parameter_set_id,
+        )
         run_results.extend(
             XGBoostOptimisationResult(
                 parameter_set_id=parameter_set_id,
@@ -100,6 +112,7 @@ def run_xgb_optimisation(test_case: str, use_all_osm: bool | None) -> None:
             for performance, performance_std in [cross_val_performance.get_final_performance()]
         )
 
+    mlflow_logger.end_parent_run()
     log_xgb_optimisation_summary(local_logger, run_results)
 
 

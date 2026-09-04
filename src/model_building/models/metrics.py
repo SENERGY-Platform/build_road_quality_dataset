@@ -105,9 +105,11 @@ class CrossValidationPerformance:
         self._inference_n_samples.append(performance.inference_n_samples)
 
     def add_model(self, model):
+        """Store the fitted model for one cross-validation split."""
         self._models.append(model)
 
     def add_model_data(self, model_data):
+        """Store the model data used for one cross-validation split."""
         self._used_data_sets.append(model_data)
 
     def calculate_median_model(self) -> "CrossValidationPerformance":

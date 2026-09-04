@@ -13,6 +13,7 @@ from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_
 
 
 def setup_data_config() -> DataConfig:
+    """Return the shared data-loading config for ANN optimisation runs."""
     return DataConfig(
         osm_ds_dir="data/open_street_map/datasets",
         manual_ds_dir="data/molewa/datasets",
@@ -22,15 +23,16 @@ def setup_data_config() -> DataConfig:
 
 
 def setup_experiment_config(ann_model_config: ANNModelConfig, test_case: str, all_osm: bool | None) -> ExperimentConfig:
+    """Return an experiment config for one ANN hyperparameter set."""
     return ExperimentConfig(
         experiment_name=EXPERIMENT_NAME,
-        test_case=test_case,
+        case_type=test_case,
         all_osm_data=all_osm,  # True uses all available data vs False equals osm train data to available manual data
         cross_validation_k=CROSS_VALIDATION_K,
         ds_version=DS_VERSION,
         feature_set_name=FEATURE_SET_NAME,
         features=FEATURES,
-        models=['ANN'],
+        model='ANN',
         test_set_percentage=TEST_SET_PERCENTAGE,
         ann_model_config=ann_model_config,
     )
@@ -86,7 +88,7 @@ def run_ann_optimisation(test_case: str, use_all_osm: bool | None) -> None:
             parameters,
         )
         experiment_config = setup_experiment_config(model_config, test_case, use_all_osm)
-        experiment_results = run_experiment(data_config, experiment_config, logger)['ANN']
+        experiment_results = run_experiment(data_config, experiment_config, logger)
 
         run_results.extend(
             ANNOptimisationResult(

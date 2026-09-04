@@ -11,6 +11,7 @@ from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_
 
 
 def setup_data_config() -> DataConfig:
+    """Return the shared data-loading config for ridge optimisation runs."""
     return DataConfig(
         osm_ds_dir="data/open_street_map/datasets",
         manual_ds_dir="data/molewa/datasets",
@@ -19,15 +20,16 @@ def setup_data_config() -> DataConfig:
     )
 
 def setup_experiment_config(linear_model_config: LinearModelConfig, test_case:str, all_osm:bool|None) -> ExperimentConfig:
+    """Return an experiment config for one ridge hyperparameter set."""
     return ExperimentConfig(
         experiment_name=EXPERIMENT_NAME,
-        test_case=test_case,
+        case_type=test_case,
         all_osm_data=all_osm, # True uses all available data vs False equals osm train data to available manual data
         cross_validation_k=CROSS_VALIDATION_K,
         ds_version=DS_VERSION,
         feature_set_name=FEATURE_SET_NAME,
         features=FEATURES,
-        models=['Linear'],
+        model='Linear',
         test_set_percentage=TEST_SET_PERCENTAGE,
         linear_model_config=linear_model_config,
     )
@@ -43,7 +45,7 @@ def run_ridge_optimisation(test_case: str, use_all_osm: bool|None) -> None:
         model_config = LinearModelConfig(alpha=float(alpha))
         logger.info("event=ridge_parameter_selected alpha=%s", model_config.alpha)
         experiment_config = setup_experiment_config(model_config, test_case, use_all_osm)
-        experiment_results = run_experiment(data_config, experiment_config, logger)['Linear']
+        experiment_results = run_experiment(data_config, experiment_config, logger)
         run_results.extend(
             RidgeOptimisationResult(
                 alpha=float(alpha),

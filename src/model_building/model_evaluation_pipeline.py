@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from src.model_building.logging.mlflow_logging import MlflowLogger
 
 from src.model_building.config.model_config import XGBoostModelConfig, LinearModelConfig, ANNModelConfig
 from src.model_building.data import data_loader
@@ -15,11 +18,37 @@ from src.model_building.logging.pipeline_logging import (
 )
 
 
+def _run_model_parameter_trial(test_cases: list[DataTestCase],
+                               experiment_config: ExperimentConfig,
+                               logger: logging.Logger,
+                               mlflow_logger: MlflowLogger | None,
+                               parameter_set_id: int | None) -> dict[str, CrossValidationPerformance]:
+    """Run one hyperparameter configuration across all dataset test cases."""
+    # connect to experiment parent run -> model + dataset_case_group
+    # for each dataset combination in group + experiment hyperparameters run one trial
+    performance_by_test_case: dict[str, CrossValidationPerformance] = {}
+    for test_case in test_cases:
+        log_testcase_started(logger, test_case)
+        if mlflow_logger is not None:
+            if parameter_set_id is None:
+                raise ValueError("parameter_set_id is required when mlflow_logger is provided.")
+            mlflow_logger.start_trial(test_case, experiment_config, parameter_set_id)
+
+        cross_val_performance = crossvalidate_model(test_case, experiment_config, logger)
+        performance_by_test_case[test_case.case_id] = cross_val_performance
+
+        if mlflow_logger is not None:
+            mlflow_logger.end_trial(cross_val_performance)
+    return performance_by_test_case
+
+
 def run_experiment(
         data_config: DataConfig,
         experiment_config: ExperimentConfig,
         logger: logging.Logger | None = None,
-) -> dict[str, dict[str, CrossValidationPerformance]]:
+        mlflow_logger: MlflowLogger | None = None,
+        parameter_set_id: int | None = None,
+) -> dict[str, CrossValidationPerformance]:
     """Load feature datasets and run one model evaluation experiment."""
     if logger is None:
         logger = configure_pipeline_logging()
@@ -27,19 +56,17 @@ def run_experiment(
     feature_datasets = load_feature_ds(data_config)
     test_cases = get_test_dataset_configurations(feature_datasets, experiment_config)
 
-    performance_by_model_test_case: dict[str, dict[str, CrossValidationPerformance]] = {}
-    for model_str in experiment_config.models:
-        if model_str not in performance_by_model_test_case:
-            performance_by_model_test_case[model_str] = {}
-
-        for test_case in test_cases:
-            log_testcase_started(logger, test_case)
-            cross_val_performance = crossvalidate_model(model_str, test_case, experiment_config, logger)
-            performance_by_model_test_case[model_str][test_case.case_id] = cross_val_performance
-    return performance_by_model_test_case
+    model_performance_by_test_case = _run_model_parameter_trial(
+        test_cases,
+        experiment_config,
+        logger,
+        mlflow_logger,
+        parameter_set_id,
+    )
+    return model_performance_by_test_case
 
 
-def crossvalidate_model(model_str: str, test_case: DataTestCase, experiment_config: ExperimentConfig,
+def crossvalidate_model(test_case: DataTestCase, experiment_config: ExperimentConfig,
                         logger: logging.Logger) -> CrossValidationPerformance:
     """Train and evaluate a fresh model across each stratified split.
 
@@ -49,15 +76,16 @@ def crossvalidate_model(model_str: str, test_case: DataTestCase, experiment_conf
     """
     stratified_shuffle_split_datasets = build_stratified_shuffle_split_datasets(test_case, experiment_config)
     cross_val_performance = CrossValidationPerformance()
-
     for test_case_model_data in stratified_shuffle_split_datasets:
-        model = setup_model(model_str, experiment_config)
+        model = setup_model(experiment_config)
         model_data = update_model_data_for_validation(model, test_case_model_data, experiment_config)
-        # log_model_data_used(logger, test_case.case_id, model_str, model_data)
-        _, run_performance = evaluate_model(model, model_data)
-        # log_model_metrics(logger, test_case.case_id, model_str, asdict(run_performance))
+        trained_model, run_performance = evaluate_model(model, model_data)
+
         cross_val_performance.add_performance(run_performance)
-    log_cross_val_performance(logger, test_case.case_id, model_str, cross_val_performance)
+        cross_val_performance.add_model(trained_model)
+        cross_val_performance.add_model_data(model_data)
+    cross_val_performance.calculate_median_model()
+    log_cross_val_performance(logger, test_case.case_id, experiment_config.model, cross_val_performance)
     return cross_val_performance
 
 
@@ -75,24 +103,23 @@ def example() -> None:
     #  C: only osm (but manual as test set)
     experiment_config = ExperimentConfig(
         experiment_name="Testrun",
-        test_case='A',
+        case_type='A',
         all_osm_data=None,
         cross_validation_k=10,
         ds_version="v1.0",
         feature_set_name="raw_features",
         features=["vibration_x", "vibration_y", "vibration_z", "speed"],
         # vibration_magnitude, score_mild, score_standard, score_strict
-        models=['ANN', 'Linear', 'XGBoost'],
+        model='ANN',
         test_set_percentage=0.3,
         ann_model_config=ANNModelConfig(
             val_set_percentage=0.2,
             layer_num_first_round=10,
             layer_num_second_round=3,
         ),
-        linear_model_config=LinearModelConfig(alpha=1.0),
-        xgb_model_config=XGBoostModelConfig()
+        # linear_model_config=LinearModelConfig(alpha=1.0),
+        # xgb_model_config=XGBoostModelConfig()
     )
-
     run_experiment(data_config, experiment_config)
 
 

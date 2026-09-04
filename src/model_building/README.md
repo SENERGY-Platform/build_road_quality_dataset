@@ -1,6 +1,6 @@
 # Model Building Pipeline
 
-This folder contains the pipeline for building road-quality models from labelled manual and OpenStreetMap datasets. 
+This folder contains the pipeline for building road-quality models from labelled manual and OpenStreetMap datasets.
 The pipeline loads or creates feature datasets, builds experiment test cases, splits training and test data, trains configured models, and evaluates them on held-out manual labels.
 
 ## Entry Point
@@ -19,7 +19,7 @@ You can define experiments in another file by importing `run_experiment` and pas
 from src.model_building.data.data_loader import DataConfig
 from src.model_building.model_evaluation_pipeline import run_experiment
 from src.model_building.config.experiment_config import ExperimentConfig
-from src.model_building.config.model_config import LinearModelConfig, XGBoostModelConfig
+from src.model_building.config.model_config import XGBoostModelConfig
 
 data_config = DataConfig(
     osm_ds_dir="data/open_street_map/datasets",
@@ -30,15 +30,14 @@ data_config = DataConfig(
 
 experiment_config = ExperimentConfig(
     experiment_name="my_experiment",
-    test_case="B",
+    case_type="B",
     all_osm_data=False,
     cross_validation_k=10,
     ds_version="v1.0",
     feature_set_name="raw_features",
     features=["vibration_x", "vibration_y", "vibration_z", "speed"],
-    models=["Linear", "XGBoost"],
+    model="XGBoost",
     test_set_percentage=0.3,
-    linear_model_config=LinearModelConfig(alpha=1.0),
     xgb_model_config=XGBoostModelConfig(),
 )
 
@@ -127,7 +126,7 @@ Models that need validation data split validation rows from the training data on
 
 Model setup and training are handled by `models/model_build.py`.
 
-Supported model names in `ExperimentConfig.models` are:
+Supported model names in `ExperimentConfig.model` are:
 
 - `ANN`
 - `Linear`
@@ -177,7 +176,9 @@ For F1 metrics, both the true test labels and predictions are converted to discr
 
 Class-wise F1 uses `zero_division=0`, so a missing or unpredicted class receives an F1 score of `0` instead of raising a warning.
 
-Cross-validation returns the mean of the score metrics and `train_time_s` across repeated splits. `inference_time_ms_per_sample` is averaged with `inference_n_samples` as weights, and the final `inference_n_samples` is the total number of timed predictions across all splits.
+`CrossValidationPerformance.get_final_performance()` returns two objects: the mean `ModelPerformance` and a `ModelPerformanceStd` with standard deviations across repeated splits. `inference_time_ms_per_sample` is averaged with `inference_n_samples` as weights, and the final `inference_n_samples` is the total number of timed predictions across all splits.
+
+Cross-validation also caches the median split's model, dataset, and performance on `median_model`, `median_data_set`, and `median_performance`. The median split is selected by macro F1 first and MAE second, while keeping all three cached objects from the same split index.
 
 ## Logging
 
@@ -188,7 +189,9 @@ The current logs include (if not commented out):
 - `testcase_started`: test-case id plus manual and OSM row counts
 - `model_data_used`: train, validation, and test row counts for each model/test-case pair
 - `model_evaluated`: per-split evaluation metrics for each model/test-case pair
-- `cross_val_performance`: averaged evaluation metrics across all repeated splits for each model/test-case pair
+- `cross_val_performance`: averaged evaluation metrics plus metric standard deviations across all repeated splits for each model/test-case pair
+
+`logging/mlflow_logging.py` contains the MLflow integration. It can create a parent run for one model/dataset-case group and nested trial runs for hyperparameter configurations. Trial runs currently log dataset parameters, feature configuration, model parameters, source-aware train/test/validation sizes, mean metrics, and metric standard deviations. Parent runs record the selected best trial's run id, trial name, mean metrics, and model parameters.
 
 ## Current Outputs
 
@@ -197,9 +200,9 @@ The pipeline can write reusable feature datasets to:
 - `data/molewa/model_building/feature_ds/osm`
 - `data/molewa/model_building/feature_ds/manual`
 
-Evaluation metrics are currently returned from `evaluate_model` and logged by `model_evaluation_pipeline.py`, but they are not yet persisted to disk.
+Evaluation metrics are returned from `evaluate_model` and aggregated by `model_evaluation_pipeline.py`. When an `MlflowLogger` is supplied, trial-level parameters, source-aware dataset sizes, mean metrics, and metric standard deviations are persisted to MLflow.
 
 ## Known Limitations
 
-- Model metrics are calculated but not saved to disk.
+- Best-model artifact logging is not implemented yet.
 - The default runnable example is currently defined in `model_evaluation_pipeline.py`.

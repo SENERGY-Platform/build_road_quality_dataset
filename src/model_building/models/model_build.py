@@ -5,6 +5,7 @@ import pandas as pd
 from xgboost import XGBRegressor
 
 from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.config.model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
 from src.model_building.models.models_ann import TwoPhaseANNModel
 from src.model_building.data.model_data import ModelData
 from src.model_building.data.data_split import split_model_data_for_validation
@@ -19,25 +20,32 @@ from src.model_building.models.metrics import ModelPerformance
 Model = TwoPhaseANNModel | Pipeline | XGBRegressor
 
 
-def setup_model(model_type: str, experiment_config: ExperimentConfig) -> Model:
+def setup_model(experiment_config: ExperimentConfig) -> Model:
     """Instantiate the requested model type from the experiment configuration."""
-    if model_type == 'ANN':
-        ann_config = asdict(experiment_config.ann_model_config)
+    model_params = experiment_config.get_model_params()
+    if experiment_config.model == 'ANN':
+        if not isinstance(model_params, ANNModelConfig):
+            raise ValueError(f"ANN selected, but got {type(model_params).__name__}.")
+        ann_config = asdict(model_params)
         # val_set_percentage is used for splitting, not for constructing the network.
         ann_config.pop('val_set_percentage')
         return TwoPhaseANNModel(**ann_config)
 
-    if model_type == 'Linear':
+    if experiment_config.model == 'Linear':
+        if not isinstance(model_params, LinearModelConfig):
+            raise ValueError(f"Linear selected, but got {type(model_params).__name__}.")
         return make_pipeline(
             StandardScaler(),
-            Ridge(**asdict(experiment_config.linear_model_config)),
+            Ridge(**asdict(model_params)),
         )
 
-    if model_type == 'XGBoost':
-        return XGBRegressor(**asdict(experiment_config.xgb_model_config))
+    if experiment_config.model == 'XGBoost':
+        if not isinstance(model_params, XGBoostModelConfig):
+            raise ValueError(f"XGBoost selected, but got {type(model_params).__name__}.")
+        return XGBRegressor(**asdict(model_params))
 
     else:
-        raise ValueError(f"Unknown model: {model_type}")
+        raise ValueError(f"Unknown model: {experiment_config.model}")
 
 
 def update_model_data_for_validation(
@@ -47,7 +55,10 @@ def update_model_data_for_validation(
 ) -> ModelData:
     """Return model-specific data, including validation data if the model needs it."""
     if isinstance(model, TwoPhaseANNModel):
-        return split_model_data_for_validation(model_data, experiment_config.ann_model_config)
+        model_params = experiment_config.get_model_params()
+        if not isinstance(model_params, ANNModelConfig):
+            raise ValueError(f"ANN validation split requested, but got {type(model_params).__name__}.")
+        return split_model_data_for_validation(model_data, model_params)
 
     if isinstance(model, (Pipeline, XGBRegressor)):
         return replace(model_data)

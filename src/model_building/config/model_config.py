@@ -38,5 +38,5 @@ class XGBoostModelConfig:
     reg_lambda: float = 1.0
 
     objective: str = "reg:squarederror"
-    tree_method = "hist"
+    tree_method: str = "hist"
     random_state: int = 42

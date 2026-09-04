@@ -1,5 +1,7 @@
 /data
 __pycache__
+.DS_Store
 /built_datasets
 pyproject.toml
 uv.lock
+/src/experiments/mlflow_secret.py
