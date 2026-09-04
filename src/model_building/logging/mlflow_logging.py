@@ -10,6 +10,7 @@ from typing import Any, Optional
 import mlflow
 import mlflow.sklearn
 import mlflow.xgboost
+from mlflow.entities import SpanType
 from sklearn.pipeline import Pipeline
 from xgboost import XGBRegressor
 
@@ -69,6 +70,8 @@ class MlflowLogger:
 
         self.active_parent_run = None
         self.active_trial_run = None
+        self.active_parent_span_context = None
+        self.active_trial_span_context = None
         self.current_trial_config: TrialRunConfig | None = None
         self.trial_run_configs: list[TrialRunConfig] = []
         self.current_best_trial_run: TrialRunConfig | None = None
@@ -114,6 +117,7 @@ class MlflowLogger:
             experiment_id=experiment_id,
             run_id=self.active_parent_run.info.run_id,
         )
+        self._start_parent_span()
 
         return self
 
@@ -147,6 +151,8 @@ class MlflowLogger:
         if best_metrics:
             mlflow.log_metrics(best_metrics)
         self._log_best_trial_artifacts()
+        self._end_parent_span()
+        mlflow.flush_trace_async_logging()
         mlflow.end_run(status="FINISHED")
         self.active_parent_run = None
 
@@ -198,6 +204,7 @@ class MlflowLogger:
         )
         trial_config.mlflow_run_id = self.active_trial_run.info.run_id
         self.current_trial_config = trial_config
+        self._start_trial_span(trial_config)
 
         self._log_trial_setup(trial_config)
 
@@ -245,10 +252,66 @@ class MlflowLogger:
             raise RuntimeError("Cannot close an mlflow trial because no trial config is active.")
 
         mlflow.set_tag("run_finished_at_utc", self._utc_now())
+        self._end_trial_span()
         mlflow.end_run(status="FINISHED")
         self.trial_run_configs.append(self.current_trial_config)
         self.active_trial_run = None
         self.current_trial_config = None
+
+    def _start_parent_span(self) -> None:
+        """Start a minimal trace span for the active parent run lifecycle."""
+        if self.parent_run_config.mlflow_run_id is None:
+            raise RuntimeError("Cannot start a parent trace span without a parent mlflow run ID.")
+
+        self.active_parent_span_context = mlflow.start_span(
+            name=self.parent_run_config.run_name,
+            span_type=SpanType.WORKFLOW,
+            run_id=self.parent_run_config.mlflow_run_id,
+            attributes={
+                "run_type": self.parent_run_config.run_type,
+                "mlflow_parent_run_id": self.parent_run_config.mlflow_run_id,
+                "parent_run_name": self.parent_run_config.run_name,
+                "model": self.parent_run_config.model_name,
+                "dataset_case_group": self.parent_run_config.dataset_case_group,
+            },
+        )
+        self.active_parent_span_context.__enter__()
+
+    def _end_parent_span(self) -> None:
+        """Close the active parent trace span."""
+        if self.active_parent_span_context is None:
+            return
+        self.active_parent_span_context.__exit__(None, None, None)
+        self.active_parent_span_context = None
+
+    def _start_trial_span(self, trial_config: TrialRunConfig) -> None:
+        """Start a minimal trace span for the active trial run lifecycle."""
+        if trial_config.mlflow_run_id is None:
+            raise RuntimeError("Cannot start a trial trace span without a trial mlflow run ID.")
+
+        self.active_trial_span_context = mlflow.start_span(
+            name=trial_config.trial_name,
+            span_type=SpanType.TASK,
+            attributes={
+                "run_type": trial_config.run_type,
+                "mlflow_parent_run_id": trial_config.mlflow_parent_run_id,
+                "mlflow_trial_run_id": trial_config.mlflow_run_id,
+                "trial_name": trial_config.trial_name,
+                "trial_number": trial_config.trial_number,
+                "parameter_set_id": trial_config.parameter_set_id,
+                "test_case_id": trial_config.test_case_id,
+                "model": trial_config.model_name,
+                "dataset_case_group": trial_config.dataset_case_group,
+            },
+        )
+        self.active_trial_span_context.__enter__()
+
+    def _end_trial_span(self) -> None:
+        """Close the active trial trace span."""
+        if self.active_trial_span_context is None:
+            return
+        self.active_trial_span_context.__exit__(None, None, None)
+        self.active_trial_span_context = None
 
     @staticmethod
     def _utc_now() -> str:
