@@ -6,7 +6,7 @@ from typing import Any, Optional
 from src.model_building.config.experiment_config import ExperimentConfig
 from src.model_building.config.model_config import ANNModelConfig, LinearModelConfig, XGBoostModelConfig
 from src.model_building.data.data_test_cases import DataTestCase, DataTestCaseManualParameters, DataTestCaseOsmParameters
-from src.model_building.data.model_data import ModelDataSizeSummary
+from src.model_building.data.model_data import ModelData, ModelDataSizeSummary
 from src.model_building.models.metrics import ModelPerformance, ModelPerformanceStd
 
 
@@ -58,9 +58,11 @@ class ParentRunConfig:
 
     best_trial_run_id: str | None
     best_trial_name: str | None
+    best_trial_params: dict[str, Any]
     best_trial_model_params: dict[str, Any]
     best_trial_metrics: dict[str, float]
-    best_trial_artifact: Any | None
+    best_trial_model: Any | None
+    best_trial_model_data: ModelData | None
 
     def __init__(self, model_name: str, dataset_case_group: str):
         """Initialise parent-run metadata for a model and dataset-case group."""
@@ -74,9 +76,11 @@ class ParentRunConfig:
         self.run_type = "parent"
         self.best_trial_run_id = None
         self.best_trial_name = None
+        self.best_trial_params = {}
         self.best_trial_model_params = {}
         self.best_trial_metrics = {}
-        self.best_trial_artifact = None
+        self.best_trial_model = None
+        self.best_trial_model_data = None
 
     def get_start_tags(self, run_started_at_utc: str) -> dict[str, str]:
         """Return the stable mlflow tags for a newly started parent run."""
@@ -96,13 +100,13 @@ class ParentRunConfig:
             tags["best_trial_name"] = self.best_trial_name
         return tags
 
-    def get_best_model_params(self) -> dict[str, Any]:
-        """Return parent-level parameters that describe the winning model."""
-        return _prefix_params("best_model", self.best_trial_model_params)
+    def get_best_params(self) -> dict[str, Any]:
+        """Return parent-level parameters from the winning trial."""
+        return self.best_trial_params
 
     def get_best_metrics(self) -> dict[str, Any]:
         """Return parent-level metrics that describe the winning trial."""
-        return _prefix_params("best", self.best_trial_metrics)
+        return self.best_trial_metrics
 
     def set_mlflow_ids(self, experiment_id: str, run_id: str) -> None:
         """Store MLflow identifiers once the parent run has started."""
@@ -112,16 +116,25 @@ class ParentRunConfig:
     def record_best_trial(
         self,
         trial_config: TrialRunConfig,
-        model_artifact: Any,
+        model: Any,
+        model_data: ModelData,
         metrics: dict[str, float],
         model_params: dict[str, Any],
     ) -> None:
         """Persist the current best-trial summary on the parent config."""
         self.best_trial_run_id = trial_config.mlflow_run_id
         self.best_trial_name = trial_config.trial_name
+        self.best_trial_params = {
+            **trial_config.get_dataset_params(),
+            **trial_config.get_feature_params(),
+            **trial_config.get_model_params(),
+        }
+        if trial_config.dataset_sizes is not None:
+            self.best_trial_params.update(trial_config.get_dataset_size_params())
         self.best_trial_model_params = model_params
         self.best_trial_metrics = metrics
-        self.best_trial_artifact = model_artifact
+        self.best_trial_model = model
+        self.best_trial_model_data = model_data
 
 
 @dataclass(init=False)

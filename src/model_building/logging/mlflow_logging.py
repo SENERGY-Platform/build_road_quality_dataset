@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import pickle
+import tempfile
+from pathlib import Path
 from typing import Any, Optional
 
 import mlflow
+import mlflow.sklearn
+import mlflow.xgboost
+from sklearn.pipeline import Pipeline
+from xgboost import XGBRegressor
 
 from src.model_building.config.experiment_config import ExperimentConfig
+from src.model_building.data.model_data import ModelData
 from src.model_building.data.data_test_cases import DataTestCase
 from src.model_building.logging.mlflow_types import ParentRunConfig, TrialRunConfig
 from src.model_building.models.metrics import CrossValidationPerformance
+from src.model_building.models.models_ann import TwoPhaseANNModel
 
 
 class MlflowLogger:
@@ -130,12 +139,13 @@ class MlflowLogger:
             raise RuntimeError("Cannot end an mlflow parent run while a trial run is active.")
 
         mlflow.set_tags(self.parent_run_config.get_finish_tags(self._utc_now()))
-        best_model_params = self.parent_run_config.get_best_model_params()
-        if best_model_params:
-            mlflow.log_params(self._format_params(best_model_params))
+        best_params = self.parent_run_config.get_best_params()
+        if best_params:
+            mlflow.log_params(self._format_params(best_params))
         best_metrics = self.parent_run_config.get_best_metrics()
         if best_metrics:
             mlflow.log_metrics(best_metrics)
+        self._log_best_trial_artifacts()
         mlflow.end_run(status="FINISHED")
         self.active_parent_run = None
 
@@ -226,6 +236,7 @@ class MlflowLogger:
 
         self.current_trial_config.record_metrics(performance, performance_std)
         mlflow.log_metrics(self.current_trial_config.get_metrics_with_std())
+        self._consider_current_trial_as_best(cross_val_performance)
 
     def _close_current_trial(self) -> None:
         """Close the active trial run and retain its completed trial config."""
@@ -278,3 +289,185 @@ class MlflowLogger:
             None,
         )
 
+    # ------------------------------------------------------------------
+    # Winner selection
+    # ------------------------------------------------------------------
+    def _consider_current_trial_as_best(
+        self,
+        cross_val_performance: CrossValidationPerformance,
+    ) -> None:
+        """Compare the active trial with the current best trial."""
+        if self.current_trial_config is None:
+            raise RuntimeError("Cannot select a best trial because no trial config is active.")
+        if self.current_trial_config.mlflow_run_id is None:
+            raise RuntimeError("Cannot select a best trial before the trial has an mlflow run ID.")
+        if cross_val_performance.median_model is None:
+            raise ValueError("Cannot select a best trial without a median fitted model.")
+        if cross_val_performance.median_data_set is None:
+            raise ValueError("Cannot select a best trial without median model data.")
+
+        self.consider_as_best(
+            model=cross_val_performance.median_model,
+            model_data=cross_val_performance.median_data_set,
+            trial_run_id=self.current_trial_config.mlflow_run_id,
+            metrics=self.current_trial_config.get_metrics_with_std(),
+            model_params=self.current_trial_config.get_model_params_without_prefix(),
+        )
+
+    def consider_as_best(
+        self,
+        model: Any,
+        model_data: ModelData,
+        trial_run_id: str,
+        metrics: dict[str, float],
+        model_params: dict[str, Any],
+    ) -> None:
+        """
+        Record a trial as the parent winner when it beats the current best trial.
+
+        Ranking is higher macro F1 first, then lower MAE for exact macro F1 ties.
+        The model and model data are retained in memory and logged once when
+        the parent run is finalised.
+        """
+        if not self._is_better(metrics, self.parent_run_config.best_trial_metrics):
+            return
+
+        trial_config = self._find_trial_config(trial_run_id)
+        if trial_config is None:
+            raise ValueError(f"No trial config exists for mlflow run ID {trial_run_id}.")
+        if trial_config.metrics is None:
+            raise ValueError(f"Trial {trial_run_id} has no recorded metrics.")
+
+        self.current_best_trial_run = trial_config
+        self.parent_run_config.record_best_trial(
+            trial_config=trial_config,
+            model=model,
+            model_data=model_data,
+            metrics=metrics,
+            model_params=model_params,
+        )
+
+    @staticmethod
+    def _is_better(
+        candidate_metrics: dict[str, float],
+        current_best_metrics: Optional[dict[str, float]],
+    ) -> bool:
+        """Return whether the candidate metrics beat the current best metrics."""
+        if "f1_macro" not in candidate_metrics:
+            raise ValueError("Cannot compare mlflow trials without an 'f1_macro' metric.")
+        if current_best_metrics is None or not current_best_metrics:
+            return True
+        if "f1_macro" not in current_best_metrics:
+            return True
+
+        candidate_f1 = candidate_metrics["f1_macro"]
+        current_best_f1 = current_best_metrics["f1_macro"]
+        if candidate_f1 != current_best_f1:
+            return candidate_f1 > current_best_f1
+
+        return candidate_metrics.get("mae", float("+inf")) < current_best_metrics.get("mae", float("+inf"))
+
+    # ------------------------------------------------------------------
+    # Parent artifacts
+    # ------------------------------------------------------------------
+    def _log_best_trial_artifacts(self) -> None:
+        """Log the best trial's fitted model and median model data to the parent run."""
+        best_model = self.parent_run_config.best_trial_model
+        best_model_data = self.parent_run_config.best_trial_model_data
+
+        if best_model is not None:
+            self._log_model_artifact(best_model, artifact_path="best_model")
+        if best_model_data is not None:
+            self._log_model_data_artifacts(best_model_data, artifact_path="best_model/model_data")
+        if best_model is not None or best_model_data is not None:
+            self._log_best_model_reproducibility_artifact()
+
+    def _log_model_artifact(self, model: Any, artifact_path: str) -> None:
+        """Log a fitted model using the strongest MLflow representation available."""
+        model_params = self._format_params(self.parent_run_config.get_best_params())
+        model_metadata = self._get_best_model_artifact_metadata()
+
+        if isinstance(model, XGBRegressor):
+            mlflow.xgboost.log_model(
+                model,
+                name=artifact_path,
+                params=model_params,
+                metadata=model_metadata,
+            )
+            return
+
+        if isinstance(model, Pipeline):
+            mlflow.sklearn.log_model(
+                model,
+                name=artifact_path,
+                serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+                params=model_params,
+                metadata=model_metadata,
+            )
+            return
+
+        if isinstance(model, TwoPhaseANNModel):
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                model_path = Path(tmp_dir) / "two_phase_ann_model.pkl"
+                with model_path.open("wb") as model_file:
+                    pickle.dump(model, model_file)
+                mlflow.log_artifact(str(model_path), artifact_path=artifact_path)
+            return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = Path(tmp_dir) / "model.pkl"
+            with model_path.open("wb") as model_file:
+                pickle.dump(model, model_file)
+            mlflow.log_artifact(str(model_path), artifact_path=artifact_path)
+
+    @staticmethod
+    def _log_model_data_artifacts(model_data: ModelData, artifact_path: str) -> None:
+        """Log the exact median split data used by the best trial."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            data_dir = Path(tmp_dir)
+            MlflowLogger._write_model_data_parts(model_data, data_dir, artifact_path)
+            mlflow.log_artifacts(str(data_dir), artifact_path=artifact_path)
+
+    def _log_best_model_reproducibility_artifact(self) -> None:
+        """Log model-level metadata needed to understand and reproduce the best run."""
+        mlflow.log_dict(self._get_best_model_artifact_metadata(), "best_model/reproducibility.json")
+
+    def _get_best_model_artifact_metadata(self) -> dict[str, Any]:
+        """Return model-level metadata needed to understand and reproduce the best run."""
+        return {
+            "best_trial_run_id": self.parent_run_config.best_trial_run_id,
+            "best_trial_name": self.parent_run_config.best_trial_name,
+            "params": self._format_params(self.parent_run_config.get_best_params()),
+            "model_params": self._format_params(self.parent_run_config.best_trial_model_params),
+            "metrics": self.parent_run_config.best_trial_metrics,
+        }
+
+    @staticmethod
+    def _write_model_data_parts(model_data: ModelData, output_dir: Path, artifact_path: str) -> None:
+        """Write model-data parts as parquet plus a small metadata artifact."""
+        metadata = {
+            "test_case_id": model_data.test_case_id,
+            "random_state": model_data.random_state,
+            "dataset_sizes": MlflowLogger._format_params(model_data.get_dataset_sizes().__dict__),
+        }
+        mlflow.log_dict(metadata, f"{artifact_path}/metadata.json")
+
+        data_frames = {
+            "manual_train_x": model_data.manual_train_x,
+            "osm_train_x": model_data.osm_train_x,
+            "test_x": model_data.test_x,
+            "manual_val_x": model_data.manual_val_x,
+            "osm_val_x": model_data.osm_val_x,
+        }
+        labels = {
+            "manual_train_y": model_data.manual_train_y,
+            "osm_train_y": model_data.osm_train_y,
+            "test_y": model_data.test_y,
+            "manual_val_y": model_data.manual_val_y,
+            "osm_val_y": model_data.osm_val_y,
+        }
+
+        for name, data_frame in data_frames.items():
+            data_frame.to_parquet(output_dir / f"{name}.parquet")
+        for name, series in labels.items():
+            series.rename("label").to_frame().to_parquet(output_dir / f"{name}.parquet")

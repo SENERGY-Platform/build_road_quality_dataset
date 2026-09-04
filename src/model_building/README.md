@@ -191,7 +191,7 @@ The current logs include (if not commented out):
 - `model_evaluated`: per-split evaluation metrics for each model/test-case pair
 - `cross_val_performance`: averaged evaluation metrics plus metric standard deviations across all repeated splits for each model/test-case pair
 
-`logging/mlflow_logging.py` contains the MLflow integration. It can create a parent run for one model/dataset-case group and nested trial runs for hyperparameter configurations. Trial runs currently log dataset parameters, feature configuration, model parameters, source-aware train/test/validation sizes, mean metrics, and metric standard deviations. Parent runs record the selected best trial's run id, trial name, mean metrics, and model parameters.
+`logging/mlflow_logging.py` contains the MLflow integration. It can create a parent run for one model/dataset-case group and nested trial runs for hyperparameter configurations. Trial runs currently log dataset parameters, feature configuration, model parameters, source-aware train/test/validation sizes, mean metrics, and metric standard deviations. Parent runs record the selected best trial's run id, trial name, mean metrics, model parameters, fitted model artifact, and median split model data.
 
 ## Current Outputs
 
@@ -204,5 +204,4 @@ Evaluation metrics are returned from `evaluate_model` and aggregated by `model_e
 
 ## Known Limitations
 
-- Best-model artifact logging is not implemented yet.
 - The default runnable example is currently defined in `model_evaluation_pipeline.py`.
