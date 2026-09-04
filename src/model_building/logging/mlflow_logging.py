@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 import pickle
 import tempfile
 from pathlib import Path
@@ -373,85 +374,89 @@ class MlflowLogger:
     def _log_best_trial_artifacts(self) -> None:
         """Log the best trial's fitted model and median model data to the parent run."""
         best_model = self.parent_run_config.best_trial_model
-        best_model_data = self.parent_run_config.best_trial_model_data
 
         if best_model is not None:
             self._log_model_artifact(best_model, artifact_path="best_model")
-        if best_model_data is not None:
-            self._log_model_data_artifacts(best_model_data, artifact_path="best_model/model_data")
-        if best_model is not None or best_model_data is not None:
-            self._log_best_model_reproducibility_artifact()
 
     def _log_model_artifact(self, model: Any, artifact_path: str) -> None:
         """Log a fitted model using the strongest MLflow representation available."""
         model_params = self._format_params(self.parent_run_config.get_best_params())
         model_metadata = self._get_best_model_artifact_metadata()
+        model_data = self.parent_run_config.best_trial_model_data
 
-        if isinstance(model, XGBRegressor):
-            mlflow.xgboost.log_model(
-                model,
-                name=artifact_path,
-                params=model_params,
-                metadata=model_metadata,
-            )
-            return
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            extra_files = self._write_best_model_extra_files(Path(tmp_dir), model_data)
 
-        if isinstance(model, Pipeline):
-            mlflow.sklearn.log_model(
-                model,
-                name=artifact_path,
-                serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
-                params=model_params,
-                metadata=model_metadata,
-            )
-            return
+            if isinstance(model, XGBRegressor):
+                mlflow.xgboost.log_model(
+                    model,
+                    name=artifact_path,
+                    params=model_params,
+                    metadata=model_metadata,
+                    extra_files=extra_files,
+                )
+                return
 
-        if isinstance(model, TwoPhaseANNModel):
-            with tempfile.TemporaryDirectory() as tmp_dir:
+            if isinstance(model, Pipeline):
+                mlflow.sklearn.log_model(
+                    model,
+                    name=artifact_path,
+                    serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+                    params=model_params,
+                    metadata=model_metadata,
+                    extra_files=extra_files,
+                )
+                return
+
+            if isinstance(model, TwoPhaseANNModel):
                 model_path = Path(tmp_dir) / "two_phase_ann_model.pkl"
                 with model_path.open("wb") as model_file:
                     pickle.dump(model, model_file)
                 mlflow.log_artifact(str(model_path), artifact_path=artifact_path)
-            return
+                self._log_extra_files(extra_files, artifact_path=artifact_path)
+                return
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
             model_path = Path(tmp_dir) / "model.pkl"
             with model_path.open("wb") as model_file:
                 pickle.dump(model, model_file)
             mlflow.log_artifact(str(model_path), artifact_path=artifact_path)
+            self._log_extra_files(extra_files, artifact_path=artifact_path)
 
     @staticmethod
-    def _log_model_data_artifacts(model_data: ModelData, artifact_path: str) -> None:
-        """Log the exact median split data used by the best trial."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            data_dir = Path(tmp_dir)
-            MlflowLogger._write_model_data_parts(model_data, data_dir, artifact_path)
-            mlflow.log_artifacts(str(data_dir), artifact_path=artifact_path)
+    def _log_extra_files(extra_files: list[str], artifact_path: str) -> None:
+        """Log prepared extra files for non-flavor model artifacts."""
+        for extra_file in extra_files:
+            extra_path = Path(extra_file)
+            if extra_path.is_dir():
+                mlflow.log_artifacts(str(extra_path), artifact_path=f"{artifact_path}/{extra_path.name}")
+            else:
+                mlflow.log_artifact(str(extra_path), artifact_path=artifact_path)
 
-    def _log_best_model_reproducibility_artifact(self) -> None:
-        """Log model-level metadata needed to understand and reproduce the best run."""
-        mlflow.log_dict(self._get_best_model_artifact_metadata(), "best_model/reproducibility.json")
+    def _write_best_model_extra_files(self, output_dir: Path, model_data: ModelData | None) -> list[str]:
+        """Write files that should be included inside the logged model package."""
+        reproducibility_path = output_dir / "reproducibility.json"
+        with reproducibility_path.open("w", encoding="utf-8") as metadata_file:
+            json.dump(self._get_best_model_artifact_metadata(), metadata_file, indent=2)
 
-    def _get_best_model_artifact_metadata(self) -> dict[str, Any]:
-        """Return model-level metadata needed to understand and reproduce the best run."""
-        return {
-            "best_trial_run_id": self.parent_run_config.best_trial_run_id,
-            "best_trial_name": self.parent_run_config.best_trial_name,
-            "best_trial_number": self.parent_run_config.best_trial_number,
-            "params": self._format_params(self.parent_run_config.get_best_params()),
-            "model_params": self._format_params(self.parent_run_config.best_trial_model_params),
-            "metrics": self.parent_run_config.best_trial_metrics,
-        }
+        extra_files = [str(reproducibility_path)]
+        if model_data is not None:
+            model_data_dir = output_dir / "model_data"
+            model_data_dir.mkdir()
+            self._write_model_data_parts(model_data, model_data_dir)
+            extra_files.append(str(model_data_dir))
+        return extra_files
 
     @staticmethod
-    def _write_model_data_parts(model_data: ModelData, output_dir: Path, artifact_path: str) -> None:
+    def _write_model_data_parts(model_data: ModelData, output_dir: Path) -> None:
         """Write model-data parts as parquet plus a small metadata artifact."""
         metadata = {
             "test_case_id": model_data.test_case_id,
             "random_state": model_data.random_state,
             "dataset_sizes": MlflowLogger._format_params(model_data.get_dataset_sizes().__dict__),
         }
-        mlflow.log_dict(metadata, f"{artifact_path}/metadata.json")
+        metadata_path = output_dir / "metadata.json"
+        with metadata_path.open("w", encoding="utf-8") as metadata_file:
+            json.dump(metadata, metadata_file, indent=2)
 
         data_frames = {
             "manual_train_x": model_data.manual_train_x,
@@ -472,3 +477,14 @@ class MlflowLogger:
             data_frame.to_parquet(output_dir / f"{name}.parquet")
         for name, series in labels.items():
             series.rename("label").to_frame().to_parquet(output_dir / f"{name}.parquet")
+
+    def _get_best_model_artifact_metadata(self) -> dict[str, Any]:
+        """Return model-level metadata needed to understand and reproduce the best run."""
+        return {
+            "best_trial_run_id": self.parent_run_config.best_trial_run_id,
+            "best_trial_name": self.parent_run_config.best_trial_name,
+            "best_trial_number": self.parent_run_config.best_trial_number,
+            "params": self._format_params(self.parent_run_config.get_best_params()),
+            "model_params": self._format_params(self.parent_run_config.best_trial_model_params),
+            "metrics": self.parent_run_config.best_trial_metrics,
+        }
