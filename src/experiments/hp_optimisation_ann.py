@@ -2,47 +2,17 @@ from itertools import product
 
 import numpy as np
 
-from src.experiments.result_types import ANNOptimisationResult
-from src.model_building.config.experiment_config import ExperimentConfig
+from src.experiments.model_optimisation_pipeline import ModelParameterRun, ParameterSet, run_model_optimisation
+from src.experiments.result_types import OptimisationResult
+from src.experiments.global_config import ANN_N_PARAMETER_SETS, LOG_TO_MLFLOW
 from src.model_building.config.model_config import ANNModelConfig
-from src.model_building.data.data_loader import DataConfig
-from src.model_building.model_evaluation_pipeline import run_experiment
-from src.model_building.logging.pipeline_logging import configure_pipeline_logging, log_ann_optimisation_summary
-from src.experiments.global_config import (EXPERIMENT_NAME, DS_VERSION, FEATURE_SET_NAME, FEATURES, CROSS_VALIDATION_K,
-                                           TEST_SET_PERCENTAGE)
-
-
-def setup_data_config() -> DataConfig:
-    """Return the shared data-loading config for ANN optimisation runs."""
-    return DataConfig(
-        osm_ds_dir="data/open_street_map/datasets",
-        manual_ds_dir="data/molewa/datasets",
-        feature_ds_dir="data/molewa/model_building/feature_ds",
-        skip_feature_build_if_exists=True,
-    )
-
-
-def setup_experiment_config(ann_model_config: ANNModelConfig, test_case: str, all_osm: bool | None) -> ExperimentConfig:
-    """Return an experiment config for one ANN hyperparameter set."""
-    return ExperimentConfig(
-        experiment_name=EXPERIMENT_NAME,
-        case_type=test_case,
-        all_osm_data=all_osm,  # True uses all available data vs False equals osm train data to available manual data
-        cross_validation_k=CROSS_VALIDATION_K,
-        ds_version=DS_VERSION,
-        feature_set_name=FEATURE_SET_NAME,
-        features=FEATURES,
-        model='ANN',
-        test_set_percentage=TEST_SET_PERCENTAGE,
-        ann_model_config=ann_model_config,
-    )
 
 
 def sample_parameter_combinations(
         parameter_space: dict[str, list[int | float]],
         n_combinations: int,
         random_state: int = 42,
-) -> list[dict[str, int | float]]:
+) -> list[ParameterSet]:
     """Draw random unique parameter combinations from a discrete search space."""
     parameter_names = list(parameter_space)
     all_combinations = [
@@ -60,12 +30,13 @@ def sample_parameter_combinations(
     return [all_combinations[index] for index in selected_indices]
 
 
-def run_ann_optimisation(test_case: str, use_all_osm: bool | None) -> None:
+def run_ann_optimisation(
+    test_case: str,
+    use_all_osm: bool | None,
+    n_parameter_sets: int = ANN_N_PARAMETER_SETS,
+    log_to_mlflow: bool = LOG_TO_MLFLOW,
+) -> list[OptimisationResult]:
     """Run randomised ANN hyperparameter optimisation across configured datasets."""
-    data_config = setup_data_config()
-    logger = configure_pipeline_logging()
-    run_results: list[ANNOptimisationResult] = []
-
     # model hyper parameter exploration config
     val_set_percentage = 0.2
     parameter_space = {
@@ -77,32 +48,23 @@ def run_ann_optimisation(test_case: str, use_all_osm: bool | None) -> None:
         "dropout": [0.0, 0.1, 0.2, 0.3],
         "weight_decay": [0.0, 0.00001, 0.0001, 0.001],
     }
-    n_random_parameter_sets = 30
-
-    parameter_test_cases = sample_parameter_combinations(parameter_space, n_random_parameter_sets)
-    for parameter_set_id, parameters in enumerate(parameter_test_cases):
-        model_config = ANNModelConfig(val_set_percentage=val_set_percentage, **parameters)
-        logger.info(
-            "event=ann_parameter_selected parameter_set_id=%s parameters=%s",
-            parameter_set_id,
-            parameters,
+    parameter_test_cases = sample_parameter_combinations(parameter_space, n_parameter_sets)
+    parameter_runs = [
+        ModelParameterRun(
+            parameter_set_id=parameter_set_id,
+            parameters=parameters,
+            model_config=ANNModelConfig(val_set_percentage=val_set_percentage, **parameters),
         )
-        experiment_config = setup_experiment_config(model_config, test_case, use_all_osm)
-        experiment_results = run_experiment(data_config, experiment_config, logger)
+        for parameter_set_id, parameters in enumerate(parameter_test_cases)
+    ]
 
-        run_results.extend(
-            ANNOptimisationResult(
-                parameter_set_id=parameter_set_id,
-                parameters=parameters,
-                testcase_id=data_test_case_id,
-                performance=performance,
-                performance_std=performance_std,
-            )
-            for data_test_case_id, cross_val_performance in experiment_results.items()
-            for performance, performance_std in [cross_val_performance.get_final_performance()]
-        )
-
-    log_ann_optimisation_summary(logger, run_results)
+    return run_model_optimisation(
+        model_name="ANN",
+        test_case=test_case,
+        use_all_osm=use_all_osm,
+        parameter_runs=parameter_runs,
+        log_to_mlflow=log_to_mlflow,
+    )
 
 
 if __name__ == '__main__':

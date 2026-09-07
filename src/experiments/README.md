@@ -10,12 +10,14 @@ Run from the repository root:
 python src/experiments/hp_optimisation_linear.py
 ```
 
-`linear_hp_optimisation.py` evaluates the `Linear` model, which is implemented as:
+`hp_optimisation_linear.py` evaluates the `Linear` model, which is implemented as:
 
 - `sklearn.preprocessing.StandardScaler`
 - `sklearn.linear_model.Ridge`
 
 The script tests 30 `alpha` values from `1e-5` to `1e5` with `np.logspace(-5, 5, 30)`. Each value is passed through `LinearModelConfig(alpha=...)`, into `ExperimentConfig.linear_model_config`, and then into the inner `Ridge` estimator.
+
+The number of tested parameter sets defaults to `RIDGE_N_PARAMETER_SETS` in `global_config.py` and can be overridden with `run_ridge_optimisation(..., n_parameter_sets=...)`.
 
 The script runs one experiment per case/OSM-size setting: `A` with no OSM data, `B` with all and limited OSM data, and `C` with all and limited OSM data. Each experiment uses five repeated stratified splits and these input features:
 
@@ -28,7 +30,7 @@ The script runs one experiment per case/OSM-size setting: `A` with no OSM data, 
 - `score_standard`
 - `score_strict`
 
-During the run, the shared model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and alpha. At the end, `log_ridge_optimisation_summary` logs:
+During the run, `run_model_optimisation` starts the shared MLflow parent/trial workflow and the model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and alpha. At the end, `log_model_optimisation_summary` logs:
 
 - number of unique dataset/test-cases tested
 - number of alpha-by-dataset model runs
@@ -37,7 +39,7 @@ During the run, the shared model-building pipeline logs averaged cross-validatio
 - best macro-F1, including testcase id, alpha, and full metrics
 - mean MAE and mean macro-F1 across all alpha-by-dataset runs
 
-Metrics are logged to stdout but are not persisted to disk.
+Metrics are logged to stdout and persisted to MLflow.
 
 ## XGBoost Hyperparameter Optimisation
 
@@ -47,7 +49,9 @@ Run from the repository root:
 python src/experiments/hp_optimisation_xgboost.py
 ```
 
-`xgb_hp_optimisation.py` evaluates the `XGBoost` model with `xgboost.XGBRegressor`. The script defines a discrete search space and samples 30 unique parameter combinations without replacement using `np.random.default_rng`.
+`hp_optimisation_xgboost.py` evaluates the `XGBoost` model with `xgboost.XGBRegressor`. The script defines a discrete search space and samples the configured number of unique parameter combinations without replacement using `np.random.default_rng`.
+
+The number of sampled parameter sets defaults to `XGB_N_PARAMETER_SETS` in `global_config.py` and can be overridden with `run_xgb_optimisation(..., n_parameter_sets=...)`.
 
 The search space is:
 
@@ -61,7 +65,7 @@ The search space is:
 
 Each sampled combination is passed through `XGBoostModelConfig(...)`, into `ExperimentConfig.xgb_model_config`, and then into `XGBRegressor`.
 
-The configured experiments use the same case/OSM-size settings, cross-validation setup, and feature list as the ridge optimisation. During the run, the shared model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and parameter set. At the end, `log_xgb_optimisation_summary` logs:
+The configured experiments use the same case/OSM-size settings, cross-validation setup, and feature list as the ridge optimisation. During the run, `run_model_optimisation` starts the shared MLflow parent/trial workflow and the model-building pipeline logs averaged cross-validation metrics for each dataset/test-case and parameter set. At the end, `log_model_optimisation_summary` logs:
 
 - number of unique dataset/test-cases tested
 - number of parameter-set-by-dataset model runs
