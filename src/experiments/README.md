@@ -7,7 +7,7 @@ This folder contains runnable experiment scripts that configure the model-buildi
 Run from the repository root:
 
 ```bash
-python src/experiments/hp_optimisation_linear.py
+python src/experiments/ridge.py
 ```
 
 `hp_optimisation_linear.py` evaluates the `Linear` model, which is implemented as:
@@ -46,7 +46,7 @@ Metrics are logged to stdout and persisted to MLflow.
 Run from the repository root:
 
 ```bash
-python src/experiments/hp_optimisation_xgboost.py
+python src/experiments/xgboost.py
 ```
 
 `hp_optimisation_xgboost.py` evaluates the `XGBoost` model with `xgboost.XGBRegressor`. The script defines a discrete search space and samples the configured number of unique parameter combinations without replacement using `np.random.default_rng`.

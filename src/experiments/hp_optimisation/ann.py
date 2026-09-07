@@ -2,10 +2,10 @@ from itertools import product
 
 import numpy as np
 
-from src.experiments.model_optimisation_pipeline import ModelParameterRun, ParameterSet, run_model_optimisation
-from src.experiments.result_types import OptimisationResult
-from src.experiments.global_config import LOG_TO_MLFLOW, XGB_N_PARAMETER_SETS
-from src.model_building.config.model_config import XGBoostModelConfig
+from src.experiments.hp_optimisation.pipeline import ModelParameterRun, ParameterSet, run_model_optimisation
+from src.experiments.hp_optimisation.result import OptimisationResult
+from src.experiments.experiment_config_defaults import ANN_N_PARAMETER_SETS, LOG_TO_MLFLOW
+from src.model_building.config.model_config import ANNModelConfig
 
 
 def sample_parameter_combinations(
@@ -30,35 +30,36 @@ def sample_parameter_combinations(
     return [all_combinations[index] for index in selected_indices]
 
 
-def run_xgb_optimisation(
+def run_ann_optimisation(
     test_case: str,
     use_all_osm: bool | None,
-    n_parameter_sets: int = XGB_N_PARAMETER_SETS,
+    n_parameter_sets: int = ANN_N_PARAMETER_SETS,
     log_to_mlflow: bool = LOG_TO_MLFLOW,
 ) -> list[OptimisationResult]:
-    """Run randomised XGBoost hyperparameter optimisation across configured datasets."""
+    """Run randomised ANN hyperparameter optimisation across configured datasets."""
     # model hyper parameter exploration config
+    val_set_percentage = 0.2
     parameter_space = {
-        "n_estimators": [100, 200, 400, 800],
-        "learning_rate": [0.03, 0.05, 0.1, 0.2],
-        "max_depth": [3, 4, 5, 6, 8],
-        "min_child_weight": [1, 3, 5, 10, 20],
-        "subsample": [0.7, 0.85, 1.0],
-        "colsample_bytree": [0.7, 0.85, 1.0],
-        "reg_lambda": [0.5, 1.0, 5.0, 10.0],
+        "layer_num_first_round": [2, 4, 6, 8, 10],
+        "layer_num_second_round": [1, 2, 3, 4],
+        "pretrain_learning_rate": [0.0001, 0.0005, 0.001, 0.005],
+        "finetune_learning_rate": [0.0001, 0.0005, 0.001, 0.005],
+        "batch_size": [32, 64, 128],
+        "dropout": [0.0, 0.1, 0.2, 0.3],
+        "weight_decay": [0.0, 0.00001, 0.0001, 0.001],
     }
     parameter_test_cases = sample_parameter_combinations(parameter_space, n_parameter_sets)
     parameter_runs = [
         ModelParameterRun(
             parameter_set_id=parameter_set_id,
             parameters=parameters,
-            model_config=XGBoostModelConfig(**parameters),
+            model_config=ANNModelConfig(val_set_percentage=val_set_percentage, **parameters),
         )
         for parameter_set_id, parameters in enumerate(parameter_test_cases)
     ]
 
     return run_model_optimisation(
-        model_name="XGBoost",
+        model_name="ANN",
         test_case=test_case,
         use_all_osm=use_all_osm,
         parameter_runs=parameter_runs,
@@ -67,8 +68,8 @@ def run_xgb_optimisation(
 
 
 if __name__ == '__main__':
-    run_xgb_optimisation("A", None)
-    run_xgb_optimisation("B", True)
-    run_xgb_optimisation("B", False)
-    run_xgb_optimisation("C", True)
-    run_xgb_optimisation("C", False)
+    run_ann_optimisation('A', None)
+    run_ann_optimisation('B', True)
+    run_ann_optimisation('B', False)
+    run_ann_optimisation('C', True)
+    run_ann_optimisation('C', False)

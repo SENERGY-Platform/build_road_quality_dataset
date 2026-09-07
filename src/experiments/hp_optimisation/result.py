@@ -2,6 +2,9 @@ from dataclasses import dataclass
 
 from src.model_building.models.metrics import ModelPerformance, ModelPerformanceStd
 
+ParameterValue = int | float | str
+ParameterSet = dict[str, ParameterValue]
+
 
 @dataclass(frozen=True)
 class OptimisationResult:
@@ -9,7 +12,7 @@ class OptimisationResult:
 
     model_name: str
     parameter_set_id: int
-    parameters: dict[str, int | float | str]
+    parameters: ParameterSet
     testcase_id: str
     performance: ModelPerformance
     performance_std: ModelPerformanceStd

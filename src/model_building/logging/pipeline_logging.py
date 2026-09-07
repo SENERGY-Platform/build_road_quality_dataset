@@ -2,11 +2,6 @@ from dataclasses import asdict
 import logging
 import sys
 
-import numpy as np
-
-from src.experiments.result_types import (
-    OptimisationResult,
-)
 from src.model_building.data.data_test_cases import DataTestCase
 from src.model_building.data.model_data import ModelData
 from src.model_building.models.metrics import CrossValidationPerformance
@@ -85,58 +80,4 @@ def log_cross_val_performance(
         model_name,
         asdict(performance),
         asdict(performance_std),
-    )
-
-
-def log_model_optimisation_summary(
-    logger: logging.Logger,
-    model_name: str,
-    results: list[OptimisationResult],
-) -> None:
-    """Log aggregate performance stats for one model optimisation run."""
-    event_name_by_model = {
-        "ANN": "ann_optimisation_summary",
-        "Linear": "ridge_optimisation_summary",
-        "XGBoost": "xgb_optimisation_summary",
-    }
-    event_name = event_name_by_model.get(model_name, "model_optimisation_summary")
-
-    if not results:
-        logger.info("event=%s datasets_tested=0 model_runs_tested=0", event_name)
-        return
-
-    best_mae_result = min(results, key=lambda result: result.performance.mae)
-    best_f1_result = max(results, key=lambda result: result.performance.f1_macro)
-    mae_scores = [result.performance.mae for result in results]
-    f1_scores = [result.performance.f1_macro for result in results]
-    parameter_set_ids = {result.parameter_set_id for result in results}
-    testcase_ids = {result.testcase_id for result in results}
-
-    logger.info(
-        (
-            "event=%s model=%s "
-            "datasets_tested=%s model_runs_tested=%s parameter_sets_tested=%s "
-            "best_mae=%s best_mae_testcase_id=%s best_mae_parameter_set_id=%s "
-            "best_mae_parameters=%s best_mae_metrics=%s "
-            "best_f1_macro=%s best_f1_testcase_id=%s best_f1_parameter_set_id=%s "
-            "best_f1_parameters=%s best_f1_metrics=%s "
-            "mean_mae=%s mean_f1_macro=%s"
-        ),
-        event_name,
-        model_name,
-        len(testcase_ids),
-        len(results),
-        len(parameter_set_ids),
-        best_mae_result.performance.mae,
-        best_mae_result.testcase_id,
-        best_mae_result.parameter_set_id,
-        best_mae_result.parameters,
-        asdict(best_mae_result.performance),
-        best_f1_result.performance.f1_macro,
-        best_f1_result.testcase_id,
-        best_f1_result.parameter_set_id,
-        best_f1_result.parameters,
-        asdict(best_f1_result.performance),
-        float(np.mean(mae_scores)),
-        float(np.mean(f1_scores)),
     )

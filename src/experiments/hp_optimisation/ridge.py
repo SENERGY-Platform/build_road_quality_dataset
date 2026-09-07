@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.experiments.model_optimisation_pipeline import ModelParameterRun, run_model_optimisation
-from src.experiments.result_types import OptimisationResult
-from src.experiments.global_config import LOG_TO_MLFLOW, RIDGE_N_PARAMETER_SETS
+from src.experiments.hp_optimisation.pipeline import ModelParameterRun, run_model_optimisation
+from src.experiments.hp_optimisation.result import OptimisationResult
+from src.experiments.experiment_config_defaults import LOG_TO_MLFLOW, RIDGE_N_PARAMETER_SETS
 from src.model_building.config.model_config import LinearModelConfig
 
 

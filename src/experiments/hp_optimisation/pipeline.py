@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import logging
 
-from src.experiments.global_config import (
+import numpy as np
+
+from src.experiments.experiment_config_defaults import (
     CROSS_VALIDATION_K,
     DS_VERSION,
     EXPERIMENT_NAME,
@@ -15,14 +17,11 @@ from src.experiments.global_config import (
     SKIP_FEATURE_BUILD_IF_EXISTS,
     TEST_SET_PERCENTAGE,
 )
-from src.experiments.result_types import OptimisationResult
+from src.experiments.hp_optimisation.result import OptimisationResult, ParameterSet
 from src.model_building.config.experiment_config import ExperimentConfig, ModelConfig
 from src.model_building.data.data_loader import DataConfig
-from src.model_building.logging.pipeline_logging import configure_pipeline_logging, log_model_optimisation_summary
+from src.model_building.logging.pipeline_logging import configure_pipeline_logging
 from src.model_building.model_evaluation_pipeline import run_experiment
-
-ParameterValue = int | float | str
-ParameterSet = dict[str, ParameterValue]
 
 
 @dataclass(frozen=True)
@@ -82,6 +81,60 @@ def _log_parameter_selected(logger: logging.Logger, model_name: str, parameter_r
         event_name,
         parameter_run.parameter_set_id,
         parameter_run.parameters,
+    )
+
+
+def log_model_optimisation_summary(
+    logger: logging.Logger,
+    model_name: str,
+    results: list[OptimisationResult],
+) -> None:
+    """Log aggregate performance stats for one model optimisation run."""
+    event_name_by_model = {
+        "ANN": "ann_optimisation_summary",
+        "Linear": "ridge_optimisation_summary",
+        "XGBoost": "xgb_optimisation_summary",
+    }
+    event_name = event_name_by_model.get(model_name, "model_optimisation_summary")
+
+    if not results:
+        logger.info("event=%s datasets_tested=0 model_runs_tested=0", event_name)
+        return
+
+    best_mae_result = min(results, key=lambda result: result.performance.mae)
+    best_f1_result = max(results, key=lambda result: result.performance.f1_macro)
+    mae_scores = [result.performance.mae for result in results]
+    f1_scores = [result.performance.f1_macro for result in results]
+    parameter_set_ids = {result.parameter_set_id for result in results}
+    testcase_ids = {result.testcase_id for result in results}
+
+    logger.info(
+        (
+            "event=%s model=%s "
+            "datasets_tested=%s model_runs_tested=%s parameter_sets_tested=%s "
+            "best_mae=%s best_mae_testcase_id=%s best_mae_parameter_set_id=%s "
+            "best_mae_parameters=%s best_mae_metrics=%s "
+            "best_f1_macro=%s best_f1_testcase_id=%s best_f1_parameter_set_id=%s "
+            "best_f1_parameters=%s best_f1_metrics=%s "
+            "mean_mae=%s mean_f1_macro=%s"
+        ),
+        event_name,
+        model_name,
+        len(testcase_ids),
+        len(results),
+        len(parameter_set_ids),
+        best_mae_result.performance.mae,
+        best_mae_result.testcase_id,
+        best_mae_result.parameter_set_id,
+        best_mae_result.parameters,
+        asdict(best_mae_result.performance),
+        best_f1_result.performance.f1_macro,
+        best_f1_result.testcase_id,
+        best_f1_result.parameter_set_id,
+        best_f1_result.parameters,
+        asdict(best_f1_result.performance),
+        float(np.mean(mae_scores)),
+        float(np.mean(f1_scores)),
     )
 
 
