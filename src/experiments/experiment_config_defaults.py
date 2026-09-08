@@ -1,5 +1,6 @@
 EXPERIMENT_NAME = "road_quality_test"
 LOG_TO_MLFLOW = True
+RUN_ON_RAY = True
 
 OSM_DS_DIR = "data/open_street_map/datasets"
 MANUAL_DS_DIR = "data/molewa/datasets"
