@@ -17,6 +17,7 @@ class ANNModelConfig:
     finetune_max_epochs: int = 200
     early_stopping_patience: int = 15
     early_stopping_min_delta: float = 0.0001
+    device: str = "cuda"
 
 
 @dataclass(frozen=True)
@@ -39,4 +40,5 @@ class XGBoostModelConfig:
 
     objective: str = "reg:squarederror"
     tree_method: str = "hist"
+    device: str = "cuda"
     random_state: int = 42

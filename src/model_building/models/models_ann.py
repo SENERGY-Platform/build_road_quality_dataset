@@ -21,6 +21,7 @@ class TwoPhaseANNModel:
         batch_size=64,
         dropout=0.0,
         weight_decay=0.0,
+        device="cuda",
     ):
         self.layer_num_first_round = layer_num_first_round
         self.layer_num_second_round = layer_num_second_round
@@ -33,6 +34,7 @@ class TwoPhaseANNModel:
         self.finetune_max_epochs = finetune_max_epochs
         self.early_stopping_patience = early_stopping_patience
         self.early_stopping_min_delta = early_stopping_min_delta
+        self.device = torch.device(device)
         self.scaler = StandardScaler()
         self.backbone = None
         self.pretrain_head = None
@@ -78,10 +80,16 @@ class TwoPhaseANNModel:
         x_tensor = torch.tensor(x, dtype=torch.float32)
         y_tensor = torch.tensor(y)
         batch_size = self.batch_size if batch_size is None else batch_size
-        return DataLoader(TensorDataset(x_tensor, y_tensor), batch_size=batch_size, shuffle=shuffle)
+        return DataLoader(
+            TensorDataset(x_tensor, y_tensor),
+            batch_size=batch_size,
+            shuffle=shuffle,
+            pin_memory=self.device.type == "cuda",
+        )
 
     def train(self, model, train_loader, val_loader, loss_function, epochs, learning_rate):
         # Train with validation-based early stopping.
+        model.to(self.device)
         optimizer = torch.optim.Adam(
             model.parameters(),
             lr=learning_rate,
@@ -98,6 +106,8 @@ class TwoPhaseANNModel:
             model.train()
             epoch_loss = 0.0
             for x_batch, y_batch in train_loader:
+                x_batch = x_batch.to(self.device, non_blocking=True)
+                y_batch = y_batch.to(self.device, non_blocking=True)
                 optimizer.zero_grad()
                 loss = loss_function(model(x_batch), y_batch)
                 loss.backward()
@@ -146,6 +156,8 @@ class TwoPhaseANNModel:
         model.eval()
         with torch.no_grad():
             for x_batch, y_batch in loader:
+                x_batch = x_batch.to(self.device, non_blocking=True)
+                y_batch = y_batch.to(self.device, non_blocking=True)
                 loss = loss_function(model(x_batch), y_batch)
                 total_loss += loss.item() * len(x_batch)
         return total_loss / len(loader.dataset)
@@ -169,22 +181,28 @@ class TwoPhaseANNModel:
         )
 
     def fit(self, model_data):
+        if self.device.type == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested for the ANN, but no CUDA device is available.")
+
         torch.manual_seed(42)
+        if self.device.type == "cuda":
+            torch.cuda.manual_seed_all(42)
         # Prefer OSM statistics when pretraining data is available.
         source_x = model_data.osm_train_x if not model_data.osm_train_x.empty else model_data.manual_train_x
         self.scaler.fit(source_x)
 
         self.backbone, output_size = self.make_backbone(source_x.shape[1])
+        self.backbone.to(self.device)
 
         if not model_data.osm_train_x.empty:
-            self.pretrain_head = nn.Linear(output_size, 1)
+            self.pretrain_head = nn.Linear(output_size, 1).to(self.device)
             osm_x = self.scaler.transform(model_data.osm_train_x)
             osm_val_x = self.scaler.transform(model_data.osm_val_x)
             self.pretrain(osm_x, model_data.osm_train_y, osm_val_x, model_data.osm_val_y)
             self.prediction_head = self.pretrain_head
 
         if not model_data.manual_train_x.empty:
-            self.finetune_head = self.make_finetune_head(output_size)
+            self.finetune_head = self.make_finetune_head(output_size).to(self.device)
             manual_x = self.scaler.transform(model_data.manual_train_x)
             manual_val_x = self.scaler.transform(model_data.manual_val_x)
             self.finetune(
@@ -200,8 +218,8 @@ class TwoPhaseANNModel:
 
     def predict(self, x):
         values = self.scaler.transform(x)
-        tensor = torch.tensor(values, dtype=torch.float32)
-        model = nn.Sequential(self.backbone, self.prediction_head)
+        tensor = torch.tensor(values, dtype=torch.float32, device=self.device)
+        model = nn.Sequential(self.backbone, self.prediction_head).to(self.device)
         model.eval()
         with torch.no_grad():
-            return model(tensor).numpy().reshape(-1)
+            return model(tensor).detach().cpu().numpy().reshape(-1)
