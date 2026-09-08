@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import logging
+import os
 
 import numpy as np
 
@@ -158,11 +159,17 @@ def run_model_optimisation(
     mlflow_logger = None
     if log_to_mlflow:
         base_experiment_config = setup_experiment_config(model_name, parameter_runs[0].model_config, test_case, use_all_osm)
-        from src.experiments.mlflow_secret import MLFLOW_TRACKING_URI
         from src.model_building.logging.mlflow_logging import MlflowLogger
 
+        tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+        if tracking_uri is None:
+            # Local, non-Ray runs can still use the unversioned settings file.
+            from src.experiments.mlflow_secret import MLFLOW_TRACKING_URI
+
+            tracking_uri = MLFLOW_TRACKING_URI
+
         mlflow_logger = MlflowLogger(
-            tracking_uri=MLFLOW_TRACKING_URI,
+            tracking_uri=tracking_uri,
             experiment_name=base_experiment_config.experiment_name,
             model=base_experiment_config.model,
             dataset_case_group=base_experiment_config.get_ds_case_group(),

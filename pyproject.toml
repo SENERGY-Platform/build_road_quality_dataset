@@ -1,0 +1,21 @@
+[project]
+name = "build-road-quality-dataset"
+version = "0.1.0"
+description = "Build and evaluate road-quality datasets and models."
+requires-python = ">=3.10"
+dependencies = [
+    "geopy>=2.3.0",
+    "mlflow==3.15.2",
+    "numpy==1.26.4",
+    "pandas==2.2.2",
+    "pyarrow==15.0.2",
+    "pyproj>=3.4.0",
+    "ray[client]==2.55.0",
+    "requests==2.34.2",
+    "scikit-learn==1.4.2",
+    "scipy==1.11.4",
+    "shapely>=2.0.0",
+    "torch==2.2.2",
+    "tqdm>=4.64.0",
+    "xgboost==2.0.3",
+]

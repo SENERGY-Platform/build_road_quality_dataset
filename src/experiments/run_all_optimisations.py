@@ -1,24 +1,20 @@
-import json
+import os
 from pathlib import Path
 
 from src.experiments.experiment_config_defaults import (
     ANN_N_PARAMETER_SETS,
     LOG_TO_MLFLOW,
     RIDGE_N_PARAMETER_SETS,
-    XGB_N_PARAMETER_SETS, RUN_ON_RAY,
+    RUN_ON_RAY,
+    XGB_N_PARAMETER_SETS,
 )
-from src.experiments.mlflow_secret import RAY_ADDRESS
+from src.experiments.mlflow_secret import MLFLOW_TRACKING_URI, RAY_ADDRESS
 from src.experiments.hp_optimisation.ann import run_ann_optimisation
 from src.experiments.hp_optimisation.ridge import run_ridge_optimisation
 from src.experiments.hp_optimisation.xgboost import run_xgb_optimisation
 
 
-RAY_RUNTIME_ENV_FILE = Path(__file__).resolve().parents[2] / "ray_runtime_env.json"
-
-def load_ray_runtime_env() -> dict:
-    """Load the Ray runtime environment used by worker tasks."""
-    with RAY_RUNTIME_ENV_FILE.open(encoding="utf-8") as runtime_env_file:
-        return json.load(runtime_env_file)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def run_all_optimisations() -> None:
@@ -52,6 +48,11 @@ def run_all_optimisations() -> None:
 
 def run_all_optimisations_on_ray() -> None:
     """Run the complete serial optimisation pipeline inside one Ray worker."""
+    # uv may need to download large CUDA wheels when Ray creates the worker
+    # environment for the first time.
+    os.environ.setdefault("RAY_CLIENT_MAX_CONNECTION_TIMEOUT_S", "600")
+    os.environ.setdefault("RAY_CLIENT_SERVER_CHECK_CHANNEL_TIMEOUT_S", "600")
+
     import ray
 
     @ray.remote(num_gpus=1)
@@ -60,7 +61,15 @@ def run_all_optimisations_on_ray() -> None:
 
     started_ray = False
     if not ray.is_initialized():
-        ray.init(address=RAY_ADDRESS, runtime_env=load_ray_runtime_env())
+        ray.init(
+            address=RAY_ADDRESS,
+            runtime_env={
+                "working_dir": str(PROJECT_ROOT),
+                "py_executable": "uv run --locked python",
+                "excludes": ["/.venv", "/data", "/.uv-cache-*"],
+                "env_vars": {"MLFLOW_TRACKING_URI": MLFLOW_TRACKING_URI},
+            },
+        )
         started_ray = True
 
     try:
