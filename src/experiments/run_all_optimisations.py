@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
+import tempfile
 
 from src.experiments.experiment_config_defaults import (
     ANN_N_PARAMETER_SETS,
+    FEATURE_DS_DIR,
     LOG_TO_MLFLOW,
     RIDGE_N_PARAMETER_SETS,
     RUN_ON_RAY,
@@ -56,8 +58,20 @@ def run_all_optimisations_on_ray() -> None:
     import ray
 
     @ray.remote(num_gpus=1)
-    def run_all_optimisations_remote() -> None:
-        run_all_optimisations()
+    def run_all_optimisations_remote(feature_dataset_files: dict[str, bytes]) -> None:
+        previous_working_dir = Path.cwd()
+        with tempfile.TemporaryDirectory(prefix="road-quality-data-") as temporary_dir:
+            feature_ds_dir = Path(temporary_dir) / FEATURE_DS_DIR
+            for relative_path, contents in feature_dataset_files.items():
+                output_path = feature_ds_dir / relative_path
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_bytes(contents)
+
+            os.chdir(temporary_dir)
+            try:
+                run_all_optimisations()
+            finally:
+                os.chdir(previous_working_dir)
 
     ray.init(
         address=RAY_ADDRESS,
@@ -70,7 +84,14 @@ def run_all_optimisations_on_ray() -> None:
     )
 
     try:
-        ray.get(run_all_optimisations_remote.remote())
+        feature_ds_dir = PROJECT_ROOT / FEATURE_DS_DIR
+        feature_dataset_files = {
+            file_path.relative_to(feature_ds_dir).as_posix(): file_path.read_bytes()
+            for group in ("manual", "osm")
+            for file_path in (feature_ds_dir / group).glob("*.parquet")
+        }
+        feature_dataset_files_ref = ray.put(feature_dataset_files)
+        ray.get(run_all_optimisations_remote.remote(feature_dataset_files_ref))
     finally:
         ray.shutdown()
 
