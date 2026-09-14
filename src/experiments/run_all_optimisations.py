@@ -56,27 +56,23 @@ def run_all_optimisations_on_ray() -> None:
     import ray
 
     @ray.remote(num_gpus=1)
-    def _run_all_optimisations_remote() -> None:
+    def run_all_optimisations_remote() -> None:
         run_all_optimisations()
 
-    started_ray = False
-    if not ray.is_initialized():
-        ray.init(
-            address=RAY_ADDRESS,
-            runtime_env={
-                "working_dir": str(PROJECT_ROOT),
-                "py_executable": "uv run --locked python",
-                "excludes": ["/.venv", "/data", "/.uv-cache-*"],
-                "env_vars": {"MLFLOW_TRACKING_URI": MLFLOW_TRACKING_URI},
-            },
-        )
-        started_ray = True
+    ray.init(
+        address=RAY_ADDRESS,
+        runtime_env={
+            "working_dir": str(PROJECT_ROOT),
+            "py_executable": "uv run --locked python",
+            "excludes": ["/.venv", "/data", "/.uv-cache-*"],
+            "env_vars": {"MLFLOW_TRACKING_URI": MLFLOW_TRACKING_URI},
+        },
+    )
 
     try:
-        ray.get(_run_all_optimisations_remote.remote())
+        ray.get(run_all_optimisations_remote.remote())
     finally:
-        if started_ray:
-            ray.shutdown()
+        ray.shutdown()
 
 
 if __name__ == "__main__":
