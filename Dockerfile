@@ -8,7 +8,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked
 
 COPY src ./src
-COPY data/molewa/model_building/feature_ds ./data/molewa/model_building/feature_ds
 
 ENV PYTHONUNBUFFERED=1
 
