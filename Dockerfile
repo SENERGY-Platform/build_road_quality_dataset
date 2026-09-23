@@ -11,4 +11,4 @@ COPY src ./src
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["/app/.venv/bin/python", "-m", "src.experiments.run_all_optimisations"]
+CMD ["/usr/src/app/.venv/bin/python", "-m", "src.experiments.run_all_optimisations"]

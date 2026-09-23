@@ -1,7 +1,5 @@
 name: Build and push training image
 
-# Manueller Trigger: laeuft nur, wenn man ihn im Actions-Tab explizit startet.
-
 on:
   push:
     branches:
