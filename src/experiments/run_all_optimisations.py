@@ -10,7 +10,6 @@ from src.experiments.experiment_config_defaults import (
     RUN_ON_RAY,
     XGB_N_PARAMETER_SETS,
 )
-from src.experiments.mlflow_secret import MLFLOW_TRACKING_URI, RAY_ADDRESS
 from src.experiments.hp_optimisation.ann import run_ann_optimisation
 from src.experiments.hp_optimisation.ridge import run_ridge_optimisation
 from src.experiments.hp_optimisation.xgboost import run_xgb_optimisation
@@ -50,6 +49,14 @@ def run_all_optimisations() -> None:
 
 def run_all_optimisations_on_ray() -> None:
     """Run the complete serial optimisation pipeline inside one Ray worker."""
+    ray_address = os.environ.get("RAY_ADDRESS")
+    mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+    if ray_address is None or mlflow_tracking_uri is None:
+        from src.experiments.mlflow_secret import MLFLOW_TRACKING_URI, RAY_ADDRESS
+
+        ray_address = ray_address or RAY_ADDRESS
+        mlflow_tracking_uri = mlflow_tracking_uri or MLFLOW_TRACKING_URI
+
     # uv may need to download large CUDA wheels when Ray creates the worker
     # environment for the first time.
     os.environ.setdefault("RAY_CLIENT_MAX_CONNECTION_TIMEOUT_S", "600")
@@ -74,12 +81,12 @@ def run_all_optimisations_on_ray() -> None:
                 os.chdir(previous_working_dir)
 
     ray.init(
-        address=RAY_ADDRESS,
+        address=ray_address,
         runtime_env={
             "working_dir": str(PROJECT_ROOT),
             "py_executable": "uv run --locked python",
             "excludes": ["/.venv", "/data", "/.uv-cache-*"],
-            "env_vars": {"MLFLOW_TRACKING_URI": MLFLOW_TRACKING_URI},
+            "env_vars": {"MLFLOW_TRACKING_URI": mlflow_tracking_uri},
         },
     )
 

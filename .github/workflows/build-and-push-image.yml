@@ -1,0 +1,36 @@
+name: Build and push training image
+
+# Manueller Trigger: laeuft nur, wenn man ihn im Actions-Tab explizit startet.
+
+on:
+  push:
+    branches:
+      - docker_integration
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT }}
+      - name: Log in to Dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/senergy-platform/build-road-quality-dataset:docker-integration
+            smartenergyplatform/build-road-quality-dataset:docker-integration

@@ -1,0 +1,13 @@
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!src/
+!src/**
+src/experiments/mlflow_secret.py
+!data/
+!data/molewa/
+!data/molewa/model_building/
+!data/molewa/model_building/feature_ds/
+!data/molewa/model_building/feature_ds/**
