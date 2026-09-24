@@ -15,6 +15,9 @@ from smoothness_mappings import calc_smoothness_scenarios
 from surface_mappings import calc_surface_scenarios
 
 
+DEFAULT_MIN_SPEED_THRESHOLD = 7.0
+
+
 def clean_labeled_locations(df: pd.DataFrame) -> pd.DataFrame:
     """Remove unusable and duplicate label rows.
 
@@ -86,7 +89,12 @@ def build_mapped_labels(labeled_location_file:str, ds_save_dir:str) -> None:
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: str) -> None:
+def join_labels_to_streets(
+    read_dir_labels: str,
+    read_dir_street: str,
+    out_dir: str,
+    min_speed_threshold: float = DEFAULT_MIN_SPEED_THRESHOLD,
+) -> None:
     """Join per-file label datasets onto a combined street dataset and save per label file.
 
     Concatenates all street CSV files in `read_dir_street` into one DataFrame, then
@@ -97,6 +105,7 @@ def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: 
         read_dir_labels: Directory containing label parquet files (expects `lat`, `lon`, `label`).
         read_dir_street: Directory containing street CSV files.
         out_dir: Output directory for joined datasets.
+        min_speed_threshold: Minimum speed required for street rows.
 
     Returns:
         None.
@@ -108,6 +117,8 @@ def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: 
         [pd.read_csv(os.path.join(read_dir_street, f)) for f in sorted(street_files)],
         ignore_index=True,
     )
+    streets["speed"] = pd.to_numeric(streets["speed"], errors="coerce")
+    streets = streets.loc[streets["speed"] > min_speed_threshold].copy()
 
     label_files = [f for f in os.listdir(read_dir_labels) if f.lower().endswith(".parquet")]
     for f in sorted(label_files):
@@ -119,10 +130,17 @@ def join_labels_to_streets(read_dir_labels: str, read_dir_street: str, out_dir: 
         f = f.replace("labels", "dataset")
         out.to_parquet(os.path.join(out_dir, f), index=False)
 
-labeled_location_file = f'data/open_street_map/label_steps/labeled_location_data/labeled_locations.parquet'
-labels_save_dir = f'data/open_street_map/label_steps/mapped_labels'
-build_mapped_labels(labeled_location_file, labels_save_dir)
 
-street_read_dir = 'data/molewa/raw'
-osm_save_dir = 'data/open_street_map/datasets'
-join_labels_to_streets(labels_save_dir, street_read_dir, osm_save_dir)
+def main() -> None:
+    """Build mapped OSM labels and joined OSM street datasets."""
+    labeled_location_file = 'data/open_street_map/label_steps/labeled_location_data/labeled_locations.parquet'
+    labels_save_dir = 'data/open_street_map/label_steps/mapped_labels'
+    build_mapped_labels(labeled_location_file, labels_save_dir)
+
+    street_read_dir = 'data/molewa/raw'
+    osm_save_dir = 'data/open_street_map/datasets'
+    join_labels_to_streets(labels_save_dir, street_read_dir, osm_save_dir)
+
+
+if __name__ == "__main__":
+    main()

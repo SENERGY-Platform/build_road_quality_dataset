@@ -34,6 +34,8 @@ METADATA_COLS = [
     "latitude",
 ]
 
+DEFAULT_MIN_SPEED_THRESHOLD = 7.0
+
 
 @dataclasses.dataclass(frozen=True)
 class DataConfig:
@@ -44,20 +46,22 @@ class DataConfig:
         manual_ds_dir: Directory containing manually labelled parquet datasets.
         feature_ds_dir: Optional output/input directory for saved feature datasets.
         skip_feature_build_if_exists: Reuse saved feature datasets when available.
+        min_speed_threshold: Minimum speed required for model feature rows.
     """
 
     osm_ds_dir: str
     manual_ds_dir: str
     feature_ds_dir: str | None
     skip_feature_build_if_exists: bool
+    min_speed_threshold: float = DEFAULT_MIN_SPEED_THRESHOLD
 
 
-def _build_ds_group(file_paths: list[Path]) -> dict[str, pd.DataFrame]:
+def _build_ds_group(file_paths: list[Path], min_speed_threshold: float) -> dict[str, pd.DataFrame]:
     """Build prepared feature datasets for a collection of input parquet files."""
     ds_group = {}
     for file_path in file_paths:
         ds_id, df = _read_single_label_ds(file_path)
-        df = _prep_ds(df)
+        df = _prep_ds(df, min_speed_threshold)
         df = features.add_scores(df)
         df = _sort_columns(df)
         ds_group[ds_id] = df
@@ -86,7 +90,15 @@ def _parse_label_num(label_num: str | float | int) -> float:
     return float(label_num)
 
 
-def _prep_ds(raw_df: pd.DataFrame) -> pd.DataFrame:
+def _filter_by_min_speed(df: pd.DataFrame, min_speed_threshold: float) -> pd.DataFrame:
+    """Keep rows above the configured speed threshold."""
+    if "speed" not in df.columns:
+        raise ValueError(f"Missing required column in feature dataset.")
+    df["speed"] = pd.to_numeric(df["speed"], errors="coerce")
+    return df.loc[df["speed"] > min_speed_threshold].copy()
+
+
+def _prep_ds(raw_df: pd.DataFrame, min_speed_threshold: float) -> pd.DataFrame:
     """Normalize input columns, parse types, and return the modelling base table."""
     raw_df = raw_df.rename(columns={
         "lon": "longitude",
@@ -108,6 +120,7 @@ def _prep_ds(raw_df: pd.DataFrame) -> pd.DataFrame:
         df.loc[:, col] = pd.to_numeric(df[col], errors="coerce")
     df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
     df["label"] = df["label"].apply(_parse_label_num)
+    df = _filter_by_min_speed(df, min_speed_threshold)
     return df
 
 
@@ -137,17 +150,21 @@ def _save_feature_ds(
     print(f"Saved {len(datasets)} feature_ds files to {output_dir}/{ds_type}")
 
 
-def _read_feature_group(feature_type_ds_dir: str) -> dict[str, pd.DataFrame]:
+def _read_feature_group(feature_type_ds_dir: str, min_speed_threshold: float) -> dict[str, pd.DataFrame]:
     """Read saved feature datasets from one dataset-type folder."""
     feat_group_datasets = {}
     for feature_ds_path in pathlib.Path(feature_type_ds_dir).glob("*.parquet"):
         df = pd.read_parquet(feature_ds_path)
+        df = _filter_by_min_speed(df, min_speed_threshold)
         ds_id = "_".join([p for p in feature_ds_path.name.split(".")[0].split("_")[3:]])
         feat_group_datasets[ds_id] = df
     return feat_group_datasets
 
 
-def _load_features_from_existing_dir(feature_dir: str) -> dict[str, dict[str, pd.DataFrame]]:
+def _load_features_from_existing_dir(
+    feature_dir: str,
+    min_speed_threshold: float,
+) -> dict[str, dict[str, pd.DataFrame]]:
     """Load saved OSM and manual feature datasets from an existing feature directory."""
     print(
         "Features exist already. Not building new features. "
@@ -155,8 +172,8 @@ def _load_features_from_existing_dir(feature_dir: str) -> dict[str, dict[str, pd
         "config parameter: skip_feature_build_if_exists=False."
     )
     return {
-        "osm": _read_feature_group(f"{feature_dir}/osm"),
-        "manual": _read_feature_group(f"{feature_dir}/manual"),
+        "osm": _read_feature_group(f"{feature_dir}/osm", min_speed_threshold),
+        "manual": _read_feature_group(f"{feature_dir}/manual", min_speed_threshold),
     }
 
 
@@ -180,14 +197,14 @@ def _check_for_saved_feature_data(feature_ds_path: str | None) -> bool:
 def load_feature_ds(config: DataConfig) -> dict[str, dict[str, pd.DataFrame]]:
     """Load existing feature datasets or build them from labelled parquet files."""
     if config.skip_feature_build_if_exists and _check_for_saved_feature_data(config.feature_ds_dir):
-        return _load_features_from_existing_dir(config.feature_ds_dir)
+        return _load_features_from_existing_dir(config.feature_ds_dir, config.min_speed_threshold)
 
     print(
         "Building new feature datasets from "
         f"{config.osm_ds_dir} and {config.manual_ds_dir}"
     )
-    osm_feat_datasets = _build_ds_group(_get_parquet_file_paths(config.osm_ds_dir))
-    manual_feat_datasets = _build_ds_group(_get_parquet_file_paths(config.manual_ds_dir))
+    osm_feat_datasets = _build_ds_group(_get_parquet_file_paths(config.osm_ds_dir), config.min_speed_threshold)
+    manual_feat_datasets = _build_ds_group(_get_parquet_file_paths(config.manual_ds_dir), config.min_speed_threshold)
 
     if config.feature_ds_dir:
         _save_feature_ds(osm_feat_datasets, config.feature_ds_dir, "osm")
