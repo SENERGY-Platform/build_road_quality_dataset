@@ -1,4 +1,4 @@
-EXPERIMENT_NAME = "road_quality_test"
+EXPERIMENT_NAME = "road_quality_experiment_1"
 LOG_TO_MLFLOW = True
 RUN_ON_RAY = True
 
