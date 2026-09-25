@@ -1,13 +1,23 @@
 """Overpass API request helpers for fetching OpenStreetMap way tags."""
 
 from datetime import datetime
+import os
 import time
 import random
 
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 import requests
-from parameter_settings import OVERPASS_URLS
+from parameter_settings import OVERPASS_URLS, OVERPASS_USER_AGENT
 from api_io import _log
+
+def _overpass_headers() -> dict[str, str]:
+    """Return HTTP headers accepted by public Overpass instances."""
+    user_agent = os.getenv("OSM_OVERPASS_USER_AGENT", OVERPASS_USER_AGENT)
+    return {
+        "Accept": "application/json",
+        "Accept-Language": "en",
+        "User-Agent": user_agent,
+    }
 
 def _overpass(query: str, timeout_s: int = 90, url: str = "") -> Dict[str, Any]:
     """Execute an Overpass QL query against a specific endpoint and return JSON.
@@ -35,7 +45,7 @@ def _overpass(query: str, timeout_s: int = 90, url: str = "") -> Dict[str, Any]:
         url,
         data={"data": q},
         timeout=timeout_s,
-        headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
+        headers=_overpass_headers(),
     )
 
     if not r.ok:

@@ -6,8 +6,12 @@ EARTH_RADIUS_M = 6371000.0
 API_REQUEST_DISTANCE_M = 20
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 ]
+OVERPASS_USER_AGENT = (
+    "build-road-quality-dataset/0.1.0 "
+    "(OpenStreetMap road-quality dataset builder; set OSM_OVERPASS_USER_AGENT for contact info)"
+)
 
 # mappings
 # 3 lane motorways are up to 12m wide, oms element will be in the middle, so 5-6m margin to reach from outer lane.
