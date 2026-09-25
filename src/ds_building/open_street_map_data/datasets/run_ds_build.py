@@ -10,9 +10,9 @@ from collections.abc import Iterator
 
 import pandas as pd
 
-from combination_mappings import calc_save_combination_scenarios
-from smoothness_mappings import calc_smoothness_scenarios
-from surface_mappings import calc_surface_scenarios
+from src.ds_building.open_street_map_data.datasets.combination_mappings import calc_save_combination_scenarios
+from src.ds_building.open_street_map_data.datasets.smoothness_mappings import calc_smoothness_scenarios
+from src.ds_building.open_street_map_data.datasets.surface_mappings import calc_surface_scenarios
 
 
 DEFAULT_MIN_SPEED_THRESHOLD = 7.0

@@ -12,8 +12,8 @@ import random
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 import pandas as pd
 
-from api_io import read_new_locations, save_raw_data, _log
-from api_coms import request_api_labels_multi
+from src.ds_building.open_street_map_data.api.api_io import read_new_locations, save_raw_data, log_msg
+from src.ds_building.open_street_map_data.api.api_coms import request_api_labels_multi
 
 def make_batches(seq: List[Tuple[float, float]], size: int) -> Iterable[List[Tuple[float, float]]]:
     """Split a list of (lon, lat) points into consecutive fixed-size batches.
@@ -83,12 +83,12 @@ def crawl_api_data_points(
         if max_minutes is not None:
             elapsed_min = (datetime.now() - start_ts).total_seconds() / 60.0
             if elapsed_min >= max_minutes:
-                _log("WARN", f"Stopping crawl: reached max_minutes={max_minutes} (elapsed={elapsed_min:.2f} min) before batch {batch_idx}.")
+                log_msg("WARN", f"Stopping crawl: reached max_minutes={max_minutes} (elapsed={elapsed_min:.2f} min) before batch {batch_idx}.")
                 break
         if not batch:
-            _log("WARN", f"Batch {batch_idx}: empty batch, skipping")
+            log_msg("WARN", f"Batch {batch_idx}: empty batch, skipping")
             continue
-        _log("INFO", f"Batch {batch_idx}: querying {len(batch)} points")
+        log_msg("INFO", f"Batch {batch_idx}: querying {len(batch)} points")
 
         try:
             payload = request_api_labels_multi(
@@ -101,7 +101,7 @@ def crawl_api_data_points(
             # Important: do NOT save requested points for failed batches,
             # so reruns will pick them up again.
             consecutive_failures += 1
-            _log("ERROR", f"Batch {batch_idx}: skipped due to Overpass failure (consecutive_failures={consecutive_failures}/{max_consecutive_failures}): {e}")
+            log_msg("ERROR", f"Batch {batch_idx}: skipped due to Overpass failure (consecutive_failures={consecutive_failures}/{max_consecutive_failures}): {e}")
             if consecutive_failures >= max_consecutive_failures:
                 red = "\033[91m"
                 reset = "\033[0m"
@@ -121,18 +121,18 @@ def crawl_api_data_points(
         # Only save on SUCCESS
         if save_dir is not None and save_raw_json:
             points_df = save_raw_data(save_dir, points_df, payload, batch, batch_idx, now)
-            _log("INFO", f"Batch {batch_idx}: saved payload + requested_points CSV")
+            log_msg("INFO", f"Batch {batch_idx}: saved payload + requested_points CSV")
 
         # Stop cleanly if we exceeded the global time budget (checked after completing batch work)
         if max_minutes is not None:
             elapsed_min = (datetime.now() - start_ts).total_seconds() / 60.0
             if elapsed_min >= max_minutes:
-                _log("WARN", f"Stopping crawl: reached max_minutes={max_minutes} (elapsed={elapsed_min:.2f} min) after batch {batch_idx}.")
+                log_msg("WARN", f"Stopping crawl: reached max_minutes={max_minutes} (elapsed={elapsed_min:.2f} min) after batch {batch_idx}.")
                 break
 
         # Throttle between successful requests to avoid hammering Overpass
         sleep_s = random.uniform(0.5, 1.5)
-        _log("DEBUG", f"Batch {batch_idx}: throttling sleep {sleep_s:.2f}s")
+        log_msg("DEBUG", f"Batch {batch_idx}: throttling sleep {sleep_s:.2f}s")
         time.sleep(sleep_s)
     return pd.DataFrame(all_rows)
 
@@ -213,6 +213,6 @@ if __name__ == "__main__":
     if not df_labels.empty:
         out_csv = os.path.join(osm_labels_raw, "osm_labels_latest.csv")
         df_labels.to_csv(out_csv, index=False)
-        _log("INFO", f"Wrote {len(df_labels)} rows to {out_csv}")
+        log_msg("INFO", f"Wrote {len(df_labels)} rows to {out_csv}")
     else:
-        _log("INFO", "No new labels created.")
+        log_msg("INFO", "No new labels created.")

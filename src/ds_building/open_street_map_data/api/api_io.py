@@ -64,15 +64,15 @@ def read_new_locations(
         A set of (lon, lat) tuples that are new.
     """
     points = read_locations(dir_path, n_rows_per_file=n_rows_per_file)
-    _log("INFO", f"Loaded {len(points)} locations from {dir_path}")
+    log_msg("INFO", f"Loaded {len(points)} locations from {dir_path}")
 
     if not os.path.isdir(save_dir):
-        _log("WARN", f"Save dir {save_dir} does not exist yet. Treating all points as new.")
+        log_msg("WARN", f"Save dir {save_dir} does not exist yet. Treating all points as new.")
         return points
 
     existing = read_locations(save_dir, n_rows_per_file=None)
     new_points = points.difference(existing)
-    _log("INFO", f"{len(new_points)} of these locations are new.")
+    log_msg("INFO", f"{len(new_points)} of these locations are new.")
     return new_points
 
 def save_raw_data(
@@ -107,7 +107,7 @@ def save_raw_data(
     raw_data = {"points": batch, "elements": payload["elements"]}
     with open(raw_path, "w", encoding="utf-8") as f:
         json.dump(raw_data, f, indent=2, ensure_ascii=False)
-    _log("INFO", f"Saved raw payload JSON: {raw_path}")
+    log_msg("INFO", f"Saved raw payload JSON: {raw_path}")
 
     batch_df = pd.DataFrame(list(batch), columns=["lon", "lat"])
     points_df = pd.concat([points_df, batch_df], ignore_index=True)
@@ -119,12 +119,12 @@ def save_raw_data(
     os.makedirs(save_subdir, exist_ok=True)
     df_path = os.path.join(save_subdir, f"requested_points_at_{time.isoformat()}.csv")
     points_df.to_csv(df_path, index=False)
-    _log("INFO", f"Updated requested_points CSV ({len(points_df)} total points): {df_path}")
+    log_msg("INFO", f"Updated requested_points CSV ({len(points_df)} total points): {df_path}")
 
     return points_df
 
 
-def _log(level: str, message: str) -> None:
+def log_msg(level: str, message: str) -> None:
     """Print a timestamped log line to stdout."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{ts}] [{level}] {message}")

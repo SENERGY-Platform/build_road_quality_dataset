@@ -3,7 +3,7 @@
 import pandas as pd
 from pandas import Series
 
-from mapping_strategy import SURFACE_SCENARIOS, SURFACE_TO_LABEL_1, SURFACE_TO_LABEL_2, SURFACE_TO_LABEL_3
+from src.ds_building.open_street_map_data.datasets.mapping_strategy import SURFACE_SCENARIOS, SURFACE_TO_LABEL_1, SURFACE_TO_LABEL_2, SURFACE_TO_LABEL_3
 
 
 def print_stats(df: pd.DataFrame, scenario:str) -> None:

@@ -4,7 +4,7 @@ import os
 from typing import Callable, final
 import pandas as pd
 
-from mapping_strategy import COMBINATION_SCENARIOS
+from src.ds_building.open_street_map_data.datasets.mapping_strategy import COMBINATION_SCENARIOS
 ChooseFn = Callable[[pd.Series, pd.Series], pd.Series]
 
 

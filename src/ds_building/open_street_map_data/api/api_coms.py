@@ -7,8 +7,9 @@ import random
 
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 import requests
-from parameter_settings import OVERPASS_URLS, OVERPASS_USER_AGENT
-from api_io import _log
+
+from src.ds_building.open_street_map_data.api.parameter_settings import OVERPASS_URLS, OVERPASS_USER_AGENT
+from src.ds_building.open_street_map_data.api.api_io import log_msg
 
 def _overpass_headers() -> dict[str, str]:
     """Return HTTP headers accepted by public Overpass instances."""
@@ -95,7 +96,7 @@ def _overpass_with_retries(
     last_err: Optional[Exception] = None
 
     for server_idx, url in enumerate(OVERPASS_URLS, start=1):
-        _log("INFO", f"Overpass using server {server_idx}/{len(OVERPASS_URLS)}: {url}")
+        log_msg("INFO", f"Overpass using server {server_idx}/{len(OVERPASS_URLS)}: {url}")
         for attempt in range(1, max_tries_per_server + 1):
             try:
                 return _overpass(query, timeout_s=timeout_s, url=url)
@@ -118,7 +119,7 @@ def _overpass_with_retries(
                 backoff = min(max_backoff_s, base_backoff_s * (2 ** (attempt - 1)))
                 jitter = random.uniform(0.0, 0.5)
                 sleep_s = backoff + jitter
-                _log(
+                log_msg(
                     "WARN",
                     f"Overpass transient error (server {server_idx}/{len(OVERPASS_URLS)} attempt {attempt}/{max_tries_per_server}). "
                     f"Sleeping {sleep_s:.1f}s then retrying. Error={msg}"
@@ -126,7 +127,7 @@ def _overpass_with_retries(
                 time.sleep(sleep_s)
 
         if server_idx < len(OVERPASS_URLS):
-            _log("WARN", f"Overpass exhausted retries on {url}. Switching to next server...")
+            log_msg("WARN", f"Overpass exhausted retries on {url}. Switching to next server...")
 
     # Exhausted all servers/attempts
     red = "\033[91m"
@@ -165,7 +166,7 @@ def request_api_labels_multi(
     if not points:
         return {"elements": []}
 
-    _log("INFO", f"Building Overpass query for {len(points)} points (radius={radius_m}m, include_surface_features={include_surface_features})")
+    log_msg("INFO", f"Building Overpass query for {len(points)} points (radius={radius_m}m, include_surface_features={include_surface_features})")
 
     blocks: List[str] = [
         f"[out:json][timeout:{int(timeout_s)}];",
@@ -185,5 +186,5 @@ def request_api_labels_multi(
     q = "\n".join(blocks)
     if not q.strip():
         raise ValueError("Overpass query is empty/whitespace. Refusing to send request.")
-    _log("DEBUG", f"Overpass query length: {len(q)} characters")
+    log_msg("DEBUG", f"Overpass query length: {len(q)} characters")
     return _overpass_with_retries(q, timeout_s=timeout_s)

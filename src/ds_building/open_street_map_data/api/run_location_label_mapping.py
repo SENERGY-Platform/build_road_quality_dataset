@@ -15,9 +15,8 @@ from shapely.geometry import Point, LineString
 from shapely.ops import transform
 from pyproj import Transformer
 
-from parameter_settings import HIGHWAY_ALLOWED_CAR_STREETS
-from parameter_settings import MAX_POINT_DISTANCE_M, CLOSEST_WAYS_MARGIN_M
-
+from src.ds_building.open_street_map_data.api.parameter_settings import HIGHWAY_ALLOWED_CAR_STREETS
+from src.ds_building.open_street_map_data.api.parameter_settings import MAX_POINT_DISTANCE_M, CLOSEST_WAYS_MARGIN_M
 
 # ----------------------------------------------------------------------------------------------------------------------
 # distance calc
@@ -321,10 +320,20 @@ def process_crawled_data_to_nearest_location_label_df(
             print(f"Thrown: {thrown_points}", )
             print("-----------------------------------------------------------------------------------------------------")
 
-labels_dir = "data/open_street_map/label_steps"
-payload_dir = f'{labels_dir}/raw_api_data/payloads'
-labeled_location_dir = f'{labels_dir}/labeled_location_data'
-save_file = f'{labeled_location_dir}/labeled_locations.parquet'
-duplicates_doc_file= f'{labeled_location_dir}/duplicates.csv'
-os.makedirs(labeled_location_dir, exist_ok=True)
-process_crawled_data_to_nearest_location_label_df(payload_dir, save_file, duplicates_doc_file, num_files=None)
+def build_location_labels(
+    payload_dir: str = "data/open_street_map/label_steps/raw_api_data/payloads",
+    save_file: str = "data/open_street_map/label_steps/labeled_location_data/labeled_locations.parquet",
+    duplicates_doc_file: str = "data/open_street_map/label_steps/labeled_location_data/duplicates.csv",
+    num_files: int | None = None,
+) -> None:
+    """Build nearest-road OSM labels from saved Overpass payload JSON files."""
+    os.makedirs(os.path.dirname(save_file), exist_ok=True)
+    process_crawled_data_to_nearest_location_label_df(
+        payload_dir,
+        save_file,
+        duplicates_doc_file,
+        num_files=num_files,
+    )
+
+if __name__ == "__main__":
+    build_location_labels()
