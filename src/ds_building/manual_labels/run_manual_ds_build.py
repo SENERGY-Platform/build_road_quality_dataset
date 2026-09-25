@@ -158,8 +158,8 @@ def run_pipeline(config: ManualLabelsConfig) -> str:
 def main() -> None:
     """Create the config, run the manual-label pipeline, and save outputs."""
     config = ManualLabelsConfig(
-        labels_path = "data/molewa/labels/molewa_labels.csv",
-        street_path = "data/molewa/raw/molewa_street - bearbeitet.csv",
+        labels_path = "data/molewa/labels",
+        street_path = "data/molewa/raw",
         output_dir = "data/molewa/datasets",
     )
     configs_combinations = [

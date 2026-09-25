@@ -5,13 +5,17 @@ road-quality points with nearby street sensor measurements.
 
 ## Inputs
 
-- Manual labels: `data/molewa/labels/molewa_labels.csv`
-- Street measurements: `data/molewa/raw/molewa_street - bearbeitet.csv`
+- Manual labels: `data/molewa/labels/`
+- Street measurements: `data/molewa/raw/`
 
-Both files are loaded with `utils.load_data`, so they must include a `timestamp`
-column parseable by pandas using ISO8601 format. The matching steps also expect
+The default run loads every `*.csv` file in each directory with
+`utils.load_data`, so all input CSVs must include a `timestamp` column parseable
+by pandas using ISO8601 format. The matching steps also expect
 `lat`, `lon`, `vehicleType`, `speed`, `vibration_x`, `vibration_y`, and
 `vibration_z` columns where relevant.
+
+Do not keep both split source CSVs and a combined "total" CSV in the same input
+directory, because every CSV in the directory is included.
 
 ## Pipeline Modes
 
@@ -54,8 +58,8 @@ python src/ds_building/manual_labels/run_manual_ds_build.py
 
 The script currently iterates over the configured mapping combinations:
 
-- labels input: `data/molewa/labels/molewa_labels.csv`
-- street input: `data/molewa/raw/molewa_street - bearbeitet.csv`
+- labels input directory: `data/molewa/labels`
+- street input directory: `data/molewa/raw`
 - output directory: `data/molewa/datasets`
 - `labels_first` with `single`
 - `labels_first` with `average`

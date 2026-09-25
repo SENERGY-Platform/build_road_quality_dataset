@@ -1,18 +1,28 @@
 """Shared utility functions for loading sensor data and measuring distances."""
 
+from pathlib import Path
+
 import pandas as pd
 from geopy import distance
 
 def load_data(path: str) -> pd.DataFrame:
-    """Load a CSV file and parse its `timestamp` column as datetimes.
+    """Load one CSV file or all CSV files in a directory.
 
     Args:
-        path: Path to the CSV file to read.
+        path: Path to a CSV file or directory of CSV files.
 
     Returns:
         DataFrame with `timestamp` converted to pandas datetime values.
     """
-    df = pd.read_csv(path)
+    input_path = Path(path)
+    if input_path.is_dir():
+        csv_files = sorted(input_path.glob("*.csv"))
+        if not csv_files:
+            raise ValueError(f"No CSV files found in directory: {path}")
+        df = pd.concat([pd.read_csv(file_path) for file_path in csv_files], ignore_index=True)
+    else:
+        df = pd.read_csv(input_path)
+
     df["timestamp"] = pd.to_datetime(df["timestamp"],format="ISO8601")
     return df
 
