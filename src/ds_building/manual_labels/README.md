@@ -34,8 +34,8 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
 `run_manual_ds_build.py` exposes the pipeline settings through
 `ManualLabelsConfig`:
 
-- `labels_path`: manual labels input CSV.
-- `street_path`: street measurements input CSV.
+- `labels_path`: manual labels input CSV file or directory of CSV files.
+- `street_path`: street measurements input CSV file or directory of CSV files.
 - `output_dir`: root output directory.
 - `mapping_type`: `labels_first` or `street_first`.
 - `mapping_procedure`: `single` or `average` for `labels_first`;
@@ -53,7 +53,7 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
 Run from the repository root:
 
 ```bash
-python src/ds_building/manual_labels/run_manual_ds_build.py
+uv run python -m src.ds_building.manual_labels.run_manual_ds_build
 ```
 
 The script currently iterates over the configured mapping combinations:
@@ -66,13 +66,16 @@ The script currently iterates over the configured mapping combinations:
 - `street_first` with `mostfrequent`
 - vehicle type: `Car`
 
-To change a run, edit the config object created in `run_manual_ds_build.py`:
+Path defaults can be overridden with `--labels-path`, `--street-path`, and
+`--output-dir`. The runner always builds the three default mapping combinations.
 
-```python
-config = ManualLabelsConfig(
-    mapping_type="street_first",
-    mapping_procedure="mostfrequent",
-)
+Example:
+
+```bash
+uv run python -m src.ds_building.manual_labels.run_manual_ds_build \
+  --labels-path data/molewa/labels \
+  --street-path data/molewa/raw \
+  --output-dir data/molewa/datasets
 ```
 
 Supported mapping values:

@@ -113,7 +113,7 @@ Outputs:
 Entrypoint:
 
 ```bash
-uv run python -m src.ds_building.open_street_map_data.datasets.run_ds_build
+uv run python -m src.ds_building.open_street_map_data.datasets.run_osm_ds_build
 ```
 
 This stage maps OSM labels into numeric road-quality labels using all configured
@@ -157,4 +157,4 @@ so the model pipeline reads the updated OSM datasets.
 - `datasets/smoothness_mappings.py`: smoothness score calculation.
 - `datasets/surface_mappings.py`: surface score calculation.
 - `datasets/combination_mappings.py`: smoothness/surface score combination.
-- `datasets/run_ds_build.py`: mapped-label generation and street-data joins.
+- `datasets/run_osm_ds_build.py`: mapped-label generation and street-data joins.

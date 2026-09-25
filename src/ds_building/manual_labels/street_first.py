@@ -8,7 +8,7 @@ from tqdm import tqdm
 import pandas as pd
 from typing import Any
 
-import utils
+from src.ds_building.manual_labels import utils
 
 def sort_vehicle_types(df_street: pd.DataFrame, vehicle_type: str) -> pd.DataFrame:
     """Return street measurement rows for one vehicle type.

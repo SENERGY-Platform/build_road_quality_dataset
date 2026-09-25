@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from typing import Any
 
-import utils
+from src.ds_building.manual_labels import utils
 
 def compute_first_sort_dict(
     df_labels: pd.DataFrame,

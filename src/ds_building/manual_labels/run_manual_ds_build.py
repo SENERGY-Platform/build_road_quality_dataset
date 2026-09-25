@@ -4,15 +4,16 @@ Run this module as a script to generate both labels-first and street-first
 dataset variants from the configured CSV inputs.
 """
 
+import argparse
 import os
 from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
 
-import labels_first
-import street_first
-import utils
+from src.ds_building.manual_labels import labels_first
+from src.ds_building.manual_labels import street_first
+from src.ds_building.manual_labels import utils
 
 
 @dataclass(frozen=False)
@@ -36,6 +37,11 @@ class ManualLabelsConfig:
 
 LABELS_FIRST_MAPPING_PROCEDURES = ("single", "average")
 STREET_FIRST_MAPPING_PROCEDURES = ("mostfrequent",)
+DEFAULT_MAPPING_COMBINATIONS = (
+    ("labels_first", "single"),
+    ("labels_first", "average"),
+    ("street_first", "mostfrequent"),
+)
 
 
 def build_labels_first_dataset(
@@ -155,24 +161,44 @@ def run_pipeline(config: ManualLabelsConfig) -> str:
     return file_path
 
 
-def main() -> None:
-    """Create the config, run the manual-label pipeline, and save outputs."""
+def run_default_pipelines(
+    labels_path: str = "data/molewa/labels",
+    street_path: str = "data/molewa/raw",
+    output_dir: str = "data/molewa/datasets",
+) -> None:
+    """Run all default manual-label dataset variants."""
     config = ManualLabelsConfig(
-        labels_path = "data/molewa/labels",
-        street_path = "data/molewa/raw",
-        output_dir = "data/molewa/datasets",
+        labels_path=labels_path,
+        street_path=street_path,
+        output_dir=output_dir,
     )
-    configs_combinations = [
-        ('labels_first', 'single'),
-        ('labels_first', 'average'),
-        ('street_first', 'mostfrequent'),
-    ]
-    for mapping_type, mapping_procedure in configs_combinations:
+    for mapping_type, mapping_procedure in DEFAULT_MAPPING_COMBINATIONS:
         print(f"Starting pipeline for mapping_type: {mapping_type}, and procedure: {mapping_procedure}.")
         config.mapping_type = mapping_type
         config.mapping_procedure = mapping_procedure
         output_path = run_pipeline(config)
         print(f"Saved dataset to {output_path}.parquet")
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Build manual-label road-quality datasets.",
+    )
+    parser.add_argument("--labels-path", default="data/molewa/labels")
+    parser.add_argument("--street-path", default="data/molewa/raw")
+    parser.add_argument("--output-dir", default="data/molewa/datasets")
+    return parser.parse_args()
+
+
+def main() -> None:
+    """Parse CLI arguments and run all default manual-label dataset variants."""
+    args = _parse_args()
+    run_default_pipelines(
+        labels_path=args.labels_path,
+        street_path=args.street_path,
+        output_dir=args.output_dir,
+    )
+
 
 if __name__ == "__main__":
     main()

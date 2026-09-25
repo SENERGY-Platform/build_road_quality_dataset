@@ -16,7 +16,7 @@ from pathlib import Path
 from src.ds_building.open_street_map_data.api.api_io import log_msg
 from src.ds_building.open_street_map_data.api.run_api_crawling import crawl_api_data
 from src.ds_building.open_street_map_data.api.run_location_label_mapping import build_location_labels
-from src.ds_building.open_street_map_data.datasets.run_ds_build import (
+from src.ds_building.open_street_map_data.datasets.run_osm_ds_build import (
     DEFAULT_MIN_SPEED_THRESHOLD,
     build_mapped_labels,
     join_labels_to_streets,
