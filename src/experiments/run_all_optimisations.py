@@ -20,12 +20,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def run_all_optimisations() -> None:
     """Run all configured optimisation experiments serially."""
+    # The all-OSM-points cases (B/C with use_all_osm=True) are left out for now:
+    # with roughly 16x the training rows the ANN would run for weeks.
     for test_case, use_all_osm in [
         ("A", None),
         ("B", False),
-        ("B", True),
         ("C", False),
-        ("C", True),
     ]:
         run_ridge_optimisation(
             test_case,
