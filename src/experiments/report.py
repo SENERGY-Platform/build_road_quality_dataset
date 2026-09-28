@@ -60,8 +60,9 @@ def load_trial_runs(experiment_name: str) -> pd.DataFrame:
 
     runs = runs.rename(columns=lambda c: c.split(".", 1)[1] if c.startswith(("tags.", "params.", "metrics.")) else c)
     runs["case"] = runs["dataset_case_group"].map(CASE_LABELS).fillna(runs["dataset_case_group"])
+    time_threshold = runs["manual_ds_manual_time_threshold"].fillna("?")
     runs["manual_ds"] = (runs["manual_ds_manual_mapping_procedure"].fillna("?")
-                         + " / t" + runs["manual_ds_manual_time_threshold"].fillna("?"))
+                         + (" / t" + time_threshold).where(time_threshold != "not_applicable", ""))
     runs["osm_ds"] = ("sm" + runs["osm_ds_osm_smoothness_mapping"].fillna("?")
                       + " surf" + runs["osm_ds_osm_surface_mapping"].fillna("?")
                       + " c" + runs["osm_ds_osm_combination_mapping"].fillna("?"))
@@ -103,10 +104,10 @@ def _figure(figure_id: str, title: str, traces: list[dict], layout: dict, height
     """Render one plotly chart as an HTML block."""
     layout = {"title": {"text": title, "font": {"size": 15}}, "height": height,
               "margin": {"l": 60, "r": 20, "t": 50, "b": 60}, "template": "plotly_white", **layout}
-    payload = json.dumps({"data": traces, "layout": layout}, default=_clean)
-    return (f'<div class="chart" id="{figure_id}"></div>'
-            f'<script>(function(){{const f={payload};'
-            f'Plotly.newPlot("{figure_id}", f.data, f.layout, {{responsive: true, displaylogo: false}});}})();</script>')
+    payload = json.dumps({"id": figure_id, "data": traces, "layout": layout}, default=_clean)
+    # Charts are only queued here and drawn once the page is laid out, see build_report. Drawing them
+    # while the page is still parsed makes plotly measure half-filled grids and size the charts too wide.
+    return f'<div class="chart" id="{figure_id}"></div><script>FIGURES.push({payload});</script>'
 
 
 def leaderboard_table(runs: pd.DataFrame) -> str:
@@ -197,7 +198,7 @@ def scatter_charts(runs: pd.DataFrame) -> str:
     """Scatter plots for class trade-offs and training cost, coloured by model."""
     def traces(x: str, y: str) -> list[dict]:
         return [
-            {"type": "scattergl", "mode": "markers", "name": model,
+            {"type": "scatter", "mode": "markers", "name": model,
              "x": runs.loc[runs["model"] == model, x].round(4).tolist(),
              "y": runs.loc[runs["model"] == model, y].round(4).tolist(),
              "text": (runs.loc[runs["model"] == model, "case"] + " · set "
@@ -250,6 +251,7 @@ def build_report(runs: pd.DataFrame, experiment_name: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(experiment_name)} report</title>
 <script src="{PLOTLY_JS_URL}"></script>
+<script>const FIGURES = [];</script>
 <style>
   body {{ font-family: system-ui, sans-serif; margin: 0 auto; max-width: 1400px; padding: 16px 24px; color: #1f2328; background: #fff; }}
   h1 {{ margin-bottom: 4px; }} h2 {{ margin-top: 40px; border-bottom: 1px solid #d0d7de; padding-bottom: 4px; }}
@@ -258,6 +260,7 @@ def build_report(runs: pd.DataFrame, experiment_name: str) -> str:
   .table th, .table td {{ border: 1px solid #d0d7de; padding: 4px 8px; text-align: left; white-space: nowrap; }}
   .table th {{ background: #f6f8fa; }}
   .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 8px; }}
+  .chart {{ min-width: 0; overflow: hidden; }}
   .scroll {{ overflow-x: auto; }} details {{ margin: 6px 0; }} summary {{ cursor: pointer; font-weight: 600; }}
 </style>
 </head>
@@ -283,6 +286,13 @@ def build_report(runs: pd.DataFrame, experiment_name: str) -> str:
 
 <h2>Top trials</h2>
 {top_trials_table(runs)}
+<script>
+  window.addEventListener("load", () => {{
+    for (const f of FIGURES) {{
+      Plotly.newPlot(f.id, f.data, f.layout, {{responsive: true, displaylogo: false}});
+    }}
+  }});
+</script>
 </body>
 </html>
 """
@@ -290,7 +300,7 @@ def build_report(runs: pd.DataFrame, experiment_name: str) -> str:
 
 def main() -> None:
     """Parse arguments, load the runs and write the report."""
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Build an HTML overview of the optimisation trials in MLflow.")
     parser.add_argument("--experiment", default=EXPERIMENT_NAME)
     parser.add_argument("--output", default=None, help="HTML file to write, default data/reports/<experiment>.html")
     args = parser.parse_args()
