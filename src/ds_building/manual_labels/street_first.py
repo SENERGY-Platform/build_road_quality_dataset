@@ -10,6 +10,7 @@ import pandas as pd
 from typing import Any
 
 from src.ds_building.manual_labels import utils
+from src.project_config import MIN_SPEED_KMH
 
 def sort_vehicle_types(df_street: pd.DataFrame, vehicle_type: str) -> pd.DataFrame:
     """Return street measurement rows for one vehicle type.
@@ -26,7 +27,7 @@ def sort_vehicle_types(df_street: pd.DataFrame, vehicle_type: str) -> pd.DataFra
 def compute_first_sort_dict(
     df_labels: pd.DataFrame,
     df_vehicle_street: pd.DataFrame,
-    speed_threshold: float = 7,
+    speed_threshold: float = MIN_SPEED_KMH,
     radius: float = 5,
     time_window_s: float = 60,
 ) -> dict[int, pd.DataFrame]:
@@ -69,7 +70,7 @@ def compute_first_sort_dict(
 def compute_vehicle_type_dict(
     df_labels: pd.DataFrame,
     df_street: pd.DataFrame,
-    speed_threshold: float = 7,
+    speed_threshold: float = MIN_SPEED_KMH,
     radius: float = 5,
     time_window_s: float = 60,
 ) -> dict[str, dict[int, pd.DataFrame]]:

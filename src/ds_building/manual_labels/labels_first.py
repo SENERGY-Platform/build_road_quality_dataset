@@ -11,11 +11,12 @@ import numpy as np
 from typing import Any
 
 from src.ds_building.manual_labels import utils
+from src.project_config import MIN_SPEED_KMH
 
 def compute_first_sort_dict(
     df_labels: pd.DataFrame,
     df_street: pd.DataFrame,
-    speed_threshold: float = 7,
+    speed_threshold: float = MIN_SPEED_KMH,
     radius: float = 5,
 ) -> dict[int, pd.DataFrame]:
     """Find nearby street rows for each manual label point.

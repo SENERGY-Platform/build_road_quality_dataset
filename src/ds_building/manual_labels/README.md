@@ -41,7 +41,9 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
 - `mapping_procedure`: `single` or `average` for `labels_first`;
   `mostfrequent` for `street_first`.
 - `vehicle_type`: vehicle type to include in the final dataset.
-- `speed_threshold`: minimum street-measurement speed.
+- `speed_threshold`: minimum street-measurement speed in km/h; defaults to the
+  project-wide `MIN_SPEED_KMH` in `src/project_config.py` (`3`), which removes
+  standing but keeps slow driving.
 - `radius`: maximum geodesic distance in metres for candidate matches (default
   `5`). Before the exact distance check, candidates are prefiltered with a coarse
   latitude/longitude box that `utils.compute_coarse_box` derives from the same

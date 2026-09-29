@@ -17,10 +17,10 @@ from src.ds_building.open_street_map_data.api.api_io import log_msg
 from src.ds_building.open_street_map_data.api.run_api_crawling import crawl_api_data
 from src.ds_building.open_street_map_data.api.run_location_label_mapping import build_location_labels
 from src.ds_building.open_street_map_data.datasets.run_osm_ds_build import (
-    DEFAULT_MIN_SPEED_THRESHOLD,
     build_mapped_labels,
     join_labels_to_streets,
 )
+from src.project_config import MIN_SPEED_KMH
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ class OSMBuildConfig:
     max_minutes: float | None = None
 
     num_payload_files: int | None = None
-    min_speed_threshold: float = DEFAULT_MIN_SPEED_THRESHOLD
+    min_speed_threshold: float = MIN_SPEED_KMH
 
 
 def run_pipeline(config: OSMBuildConfig) -> None:

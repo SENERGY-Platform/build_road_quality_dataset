@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.model_building.features import features
+from src.project_config import MIN_SPEED_KMH
 
 REQUIRED_NUMBER_COLS = [
     "vibration_x",
@@ -34,9 +35,6 @@ METADATA_COLS = [
     "latitude",
 ]
 
-DEFAULT_MIN_SPEED_THRESHOLD = 7.0
-
-
 @dataclasses.dataclass(frozen=True)
 class DataConfig:
     """Configuration for building or loading model feature datasets.
@@ -53,7 +51,7 @@ class DataConfig:
     manual_ds_dir: str
     feature_ds_dir: str | None
     skip_feature_build_if_exists: bool
-    min_speed_threshold: float = DEFAULT_MIN_SPEED_THRESHOLD
+    min_speed_threshold: float = MIN_SPEED_KMH
 
 
 def _build_ds_group(file_paths: list[Path], min_speed_threshold: float) -> dict[str, pd.DataFrame]:

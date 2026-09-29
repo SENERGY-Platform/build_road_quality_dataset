@@ -13,9 +13,7 @@ import pandas as pd
 from src.ds_building.open_street_map_data.datasets.combination_mappings import calc_save_combination_scenarios
 from src.ds_building.open_street_map_data.datasets.smoothness_mappings import calc_smoothness_scenarios
 from src.ds_building.open_street_map_data.datasets.surface_mappings import calc_surface_scenarios
-
-
-DEFAULT_MIN_SPEED_THRESHOLD = 7.0
+from src.project_config import MIN_SPEED_KMH
 
 
 def clean_labeled_locations(df: pd.DataFrame) -> pd.DataFrame:
@@ -93,7 +91,7 @@ def join_labels_to_streets(
     read_dir_labels: str,
     read_dir_street: str,
     out_dir: str,
-    min_speed_threshold: float = DEFAULT_MIN_SPEED_THRESHOLD,
+    min_speed_threshold: float = MIN_SPEED_KMH,
 ) -> None:
     """Join per-file label datasets onto a combined street dataset and save per label file.
 
