@@ -46,8 +46,11 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
   `5`). Before the exact distance check, candidates are prefiltered with a coarse
   latitude/longitude box that `utils.compute_coarse_box` derives from the same
   radius.
-- `time_threshold`: labels-first only; keeps street measurements within this many
-  days of the latest matched timestamp for a label.
+- `time_window_s`: labels-first only; keeps street measurements recorded within
+  this many seconds of the label's own timestamp (default `60`). Labels and
+  sensor data are recorded simultaneously in the same car, so this keeps the
+  simultaneous measurement and excludes other passes over the same spot and
+  other drives. Labels without any measurement in the window are skipped.
 
 ## Running
 
@@ -92,7 +95,7 @@ The script writes parquet outputs under:
 - `data/molewa/datasets/labels_first/`
 - `data/molewa/datasets/street_first/`
 
-Output filenames encode the selected radius, mapping procedure, time threshold
+Output filenames encode the selected radius, mapping procedure, time window
 where applicable, and vehicle type, using the `.parquet` extension.
 
 Each output row uses the same flat schema across all supported mapping

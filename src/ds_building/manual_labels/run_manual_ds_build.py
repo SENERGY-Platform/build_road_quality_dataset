@@ -29,7 +29,7 @@ class ManualLabelsConfig:
     vehicle_type: str = "Car"
 
     speed_threshold: float = 7
-    time_threshold: int = 10
+    time_window_s: int = 60
     radius: float = 5
 
 
@@ -55,8 +55,9 @@ def build_labels_first_dataset(
         radius=config.radius,
     )
     vehicle_type_dict = labels_first.compute_vehicle_type_dict(
+        df_labels,
         first_sort_dict,
-        time_threshold=config.time_threshold,
+        time_window_s=config.time_window_s,
     )
     return labels_first.create_data_set(
         df_labels,
@@ -94,7 +95,7 @@ def output_path_for_config(config: ManualLabelsConfig) -> str:
             f"manual_dataset_"
             f"radius{config.radius}_"
             f"mappingprocedure{config.mapping_procedure}_"
-            f"timethreshold{config.time_threshold}_"
+            f"timewindow{config.time_window_s}s_"
             f"vehicletype{config.vehicle_type}"
         )
     else:

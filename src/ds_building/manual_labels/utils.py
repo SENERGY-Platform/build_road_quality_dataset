@@ -52,6 +52,29 @@ def compute_coarse_box(radius: float, lat: float) -> tuple[float, float]:
     return lat_threshold, lon_threshold
 
 
+def filter_by_time_window(
+    candidates: pd.DataFrame,
+    reference_timestamp: pd.Timestamp,
+    time_window_s: float,
+) -> pd.DataFrame:
+    """Keep candidate rows recorded within `time_window_s` seconds of a reference time.
+
+    Labels and street measurements come from phones travelling in the same car, so
+    a label is only matched to measurements taken around the same moment. This
+    excludes other passes over the same spot and measurements from other drives.
+
+    Args:
+        candidates: DataFrame of candidate rows with a `timestamp` column.
+        reference_timestamp: Timestamp of the label or street row being matched.
+        time_window_s: Maximum absolute time difference in seconds.
+
+    Returns:
+        Filtered DataFrame of candidate rows.
+    """
+    time_diff = (candidates["timestamp"] - reference_timestamp).abs()
+    return candidates.loc[time_diff <= pd.Timedelta(seconds=time_window_s)]
+
+
 def compute_distance(lat_1: float, lon_1: float, lat_2: float, lon_2: float) -> distance.Distance:
     """Calculate the geodesic distance between two latitude/longitude points.
 

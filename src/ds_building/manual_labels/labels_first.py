@@ -1,8 +1,9 @@
 """Manual-label-first matching for road-quality dataset construction.
 
 This module starts from each manually labeled road-quality point, finds nearby
-street sensor measurements, filters them by vehicle type and recency, and creates
-training examples with vibration values paired to the manual label.
+street sensor measurements, filters them by vehicle type and by recording time
+relative to the label, and creates training examples with vibration values
+paired to the manual label.
 """
 
 import pandas as pd
@@ -66,18 +67,21 @@ def compute_vehicle_dict(first_sort_dict: dict[int, pd.DataFrame], vehicle_type:
     return vehicle_dict
 
 def compute_vehicle_type_dict(
+    df_labels: pd.DataFrame,
     first_sort_dict: dict[int, pd.DataFrame],
-    time_threshold: int = 10,
+    time_window_s: float = 60,
 ) -> dict[str, dict[int, pd.DataFrame]]:
     """Build candidate street-row mappings for all supported vehicle types.
 
     Candidate rows are grouped by vehicle type and filtered to keep only rows whose
-    timestamp falls within `time_threshold` days of the newest candidate timestamp
-    for the same label point.
+    timestamp lies within `time_window_s` seconds of the label point's own
+    timestamp. Labels left without candidates are omitted.
 
     Args:
+        df_labels: DataFrame of manual labels containing a `timestamp` column.
         first_sort_dict: Mapping from label index to nearby street measurement rows.
-        time_threshold: Number of days before the newest candidate timestamp to keep.
+        time_window_s: Maximum absolute time difference between label and street
+            row, in seconds.
 
     Returns:
         Nested dict keyed by vehicle type and then label-row index.
@@ -92,9 +96,10 @@ def compute_vehicle_type_dict(
     for vehicle_type in vehicle_type_dict_aux.keys():
         vehicle_type_dict[vehicle_type] = {}
         for i in vehicle_type_dict_aux[vehicle_type].keys():
-            if list(vehicle_type_dict_aux[vehicle_type][i]["timestamp"]):
-                vehicle_type_dict[vehicle_type][i] = vehicle_type_dict_aux[vehicle_type][i].loc[max(vehicle_type_dict_aux[vehicle_type][i]["timestamp"]) - 
-                                                                                                    vehicle_type_dict_aux[vehicle_type][i]["timestamp"] < pd.Timedelta(time_threshold,"d")]
+            candidates = utils.filter_by_time_window(vehicle_type_dict_aux[vehicle_type][i],
+                                                     df_labels["timestamp"].iloc[i], time_window_s)
+            if not candidates.empty:
+                vehicle_type_dict[vehicle_type][i] = candidates
     print("Vehicle type dict created!") 
 
     return vehicle_type_dict

@@ -11,7 +11,7 @@ class DataTestCaseManualParameters:
 
     manual_radius: str | None
     manual_mapping_procedure: str | None
-    manual_time_threshold: str | None
+    manual_time_window: str | None
     manual_vehicle_type: str | None
 
 
@@ -49,7 +49,7 @@ class DataTestCase:
 MANUAL_PARAMETERS_MAP = {
     'radius': 'manual_radius',
     'mappingprocedure': 'manual_mapping_procedure',
-    'timethreshold': 'manual_time_threshold',
+    'timewindow': 'manual_time_window',
     'vehicletype': 'manual_vehicle_type',
 }
 
