@@ -78,6 +78,7 @@ def build_street_first_dataset(
         df_street,
         speed_threshold=config.speed_threshold,
         radius=config.radius,
+        time_window_s=config.time_window_s,
     )
     return street_first.create_data_set(
         df_street,
@@ -89,23 +90,14 @@ def build_street_first_dataset(
 
 def output_path_for_config(config: ManualLabelsConfig) -> str:
     """Return the base output path for the configured pipeline mode."""
-    if config.mapping_type == "labels_first":
-        subdir = "labels_first"
-        filename = (
-            f"manual_dataset_"
-            f"radius{config.radius}_"
-            f"mappingprocedure{config.mapping_procedure}_"
-            f"timewindow{config.time_window_s}s_"
-            f"vehicletype{config.vehicle_type}"
-        )
-    else:
-        subdir = "street_first"
-        filename = (
-            f"manual_dataset_"
-            f"radius{config.radius}_"
-            f"mappingprocedure{config.mapping_procedure}_"
-            f"vehicletype{config.vehicle_type}"
-        )
+    subdir = "labels_first" if config.mapping_type == "labels_first" else "street_first"
+    filename = (
+        f"manual_dataset_"
+        f"radius{config.radius}_"
+        f"mappingprocedure{config.mapping_procedure}_"
+        f"timewindow{config.time_window_s}s_"
+        f"vehicletype{config.vehicle_type}"
+    )
 
     output_dir = os.path.join(config.output_dir, subdir)
     os.makedirs(output_dir, exist_ok=True)

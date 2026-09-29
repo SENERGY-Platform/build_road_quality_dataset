@@ -46,11 +46,11 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
   `5`). Before the exact distance check, candidates are prefiltered with a coarse
   latitude/longitude box that `utils.compute_coarse_box` derives from the same
   radius.
-- `time_window_s`: labels-first only; keeps street measurements recorded within
-  this many seconds of the label's own timestamp (default `60`). Labels and
-  sensor data are recorded simultaneously in the same car, so this keeps the
-  simultaneous measurement and excludes other passes over the same spot and
-  other drives. Labels without any measurement in the window are skipped.
+- `time_window_s`: only pairs a label and a street measurement if they were recorded within this many seconds of each other
+  (default `60`). Labels and sensor data are recorded simultaneously in the same
+  car, so this keeps the simultaneous measurement and excludes other passes over
+  the same spot and other drives. Labels or street measurements without any
+  partner in the window are skipped.
 
 ## Running
 
@@ -95,8 +95,8 @@ The script writes parquet outputs under:
 - `data/molewa/datasets/labels_first/`
 - `data/molewa/datasets/street_first/`
 
-Output filenames encode the selected radius, mapping procedure, time window
-where applicable, and vehicle type, using the `.parquet` extension.
+Output filenames encode the selected radius, mapping procedure, time window,
+and vehicle type, using the `.parquet` extension.
 
 Each output row uses the same flat schema across all supported mapping
 procedures:
@@ -118,7 +118,8 @@ rows.
 
 For `street_first` with `mostfrequent`, each matching street measurement
 becomes one output row. Sensor values, speed, location, and timestamp are copied
-from that street row, while `label` is the most frequent nearby manual label.
+from that street row, while `label` is the most frequent nearby manual label
+within the time window.
 
 ## Files
 
