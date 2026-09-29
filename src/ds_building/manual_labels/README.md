@@ -119,7 +119,8 @@ rows.
 For `street_first` with `mostfrequent`, each matching street measurement
 becomes one output row. Sensor values, speed, location, and timestamp are copied
 from that street row, while `label` is the most frequent nearby manual label
-within the time window.
+within the time window. If several labels are equally frequent, the label of the
+nearest label point is used.
 
 ## Files
 

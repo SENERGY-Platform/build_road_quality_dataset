@@ -97,16 +97,20 @@ def compute_vehicle_type_dict(
     print(vehicle_type_dict["Car"][list(vehicle_type_dict["Car"].keys())[0]].iloc[:30])
     return vehicle_type_dict
 
-def most_frequent(list: list[Any]) -> Any:
-    """Return the most common value in a list-like sequence.
+def most_frequent_label(labels: pd.DataFrame) -> Any:
+    """Return the most common label, breaking ties by the nearest label.
 
     Args:
-        list: Sequence of values to count.
+        labels: Nearby manual-label rows with `label` and `distance` columns.
 
     Returns:
-        Value with the highest occurrence count.
+        Label value with the highest occurrence count. If several labels are
+        equally common, the one belonging to the nearest label point wins.
     """
-    return max(set(list), key=list.count)
+    counts = labels["label"].value_counts()
+    tied_labels = counts[counts == counts.max()].index
+    candidates = labels.loc[labels["label"].isin(tied_labels)]
+    return candidates.loc[candidates["distance"].idxmin(), "label"]
 
 
 def create_data_set(
@@ -118,7 +122,7 @@ def create_data_set(
     """Create vibration/label examples using labels near each street point.
 
     Currently supports `mostfrequent`, which assigns the most common nearby manual
-    label to each qualifying street measurement.
+    label to each qualifying street measurement; ties go to the nearest label.
 
     Args:
         df_street: Street measurement DataFrame containing vibration columns.
@@ -140,7 +144,7 @@ def create_data_set(
                                 "vibration_y": street_row["vibration_y"],
                                 "vibration_z": street_row["vibration_z"],
                                 "speed": street_row["speed"],
-                                "label": most_frequent(list(labels["label"])),
+                                "label": most_frequent_label(labels),
                                 "lon": street_row["lon"],
                                 "lat": street_row["lat"],
                                 "timestamp": street_row["timestamp"]
