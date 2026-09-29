@@ -41,10 +41,11 @@ The mode is controlled by `ManualLabelsConfig.mapping_type` in
 - `mapping_procedure`: `single` or `average` for `labels_first`;
   `mostfrequent` for `street_first`.
 - `vehicle_type`: vehicle type to include in the final dataset.
-- `lon_threshold` and `lat_threshold`: coarse coordinate filters before distance
-  calculation.
 - `speed_threshold`: minimum street-measurement speed.
-- `radius`: maximum geodesic distance in metres for candidate matches.
+- `radius`: maximum geodesic distance in metres for candidate matches (default
+  `5`). Before the exact distance check, candidates are prefiltered with a coarse
+  latitude/longitude box that `utils.compute_coarse_box` derives from the same
+  radius.
 - `time_threshold`: labels-first only; keeps street measurements within this many
   days of the latest matched timestamp for a label.
 

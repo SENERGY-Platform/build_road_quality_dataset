@@ -28,11 +28,9 @@ class ManualLabelsConfig:
     mapping_procedure: str = "average" # "single", "average", "mostfrequent"
     vehicle_type: str = "Car"
 
-    lon_threshold: float = 8e-05
-    lat_threshold: float = 6e-05
     speed_threshold: float = 7
     time_threshold: int = 10
-    radius: float = 2
+    radius: float = 5
 
 
 LABELS_FIRST_MAPPING_PROCEDURES = ("single", "average")
@@ -53,8 +51,6 @@ def build_labels_first_dataset(
     first_sort_dict = labels_first.compute_first_sort_dict(
         df_labels,
         df_street,
-        lon_threshold=config.lon_threshold,
-        lat_threshold=config.lat_threshold,
         speed_threshold=config.speed_threshold,
         radius=config.radius,
     )
@@ -79,8 +75,6 @@ def build_street_first_dataset(
     vehicle_type_dict = street_first.compute_vehicle_type_dict(
         df_labels,
         df_street,
-        lon_threshold=config.lon_threshold,
-        lat_threshold=config.lat_threshold,
         speed_threshold=config.speed_threshold,
         radius=config.radius,
     )

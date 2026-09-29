@@ -25,22 +25,19 @@ def sort_vehicle_types(df_street: pd.DataFrame, vehicle_type: str) -> pd.DataFra
 def compute_first_sort_dict(
     df_labels: pd.DataFrame,
     df_vehicle_street: pd.DataFrame,
-    lon_threshold: float = 3e-05,
-    lat_threshold: float = 2e-05,
     speed_threshold: float = 7,
-    radius: float = 2,
+    radius: float = 5,
 ) -> dict[int, pd.DataFrame]:
     """Find nearby manual labels for each street measurement row.
 
-    Applies vehicle-speed, coordinate-threshold, and geodesic-radius filters to
-    identify manual labels that can be assigned to each street measurement.
+    Applies vehicle-speed, a coarse coordinate box sized to `radius`, and
+    geodesic-radius filters to identify manual labels that can be assigned to
+    each street measurement.
 
     Args:
         df_labels: DataFrame containing manual labels with `lat`, `lon`, and `label`.
         df_vehicle_street: Street measurement DataFrame already filtered to one
             vehicle type.
-        lon_threshold: Maximum absolute longitude difference for the coarse filter.
-        lat_threshold: Maximum absolute latitude difference for the coarse filter.
         speed_threshold: Minimum street-measurement speed to consider.
         radius: Maximum accepted point-to-point distance in metres.
 
@@ -51,6 +48,7 @@ def compute_first_sort_dict(
 
     for i in tqdm(df_vehicle_street.index):
         if df_vehicle_street["speed"][i] > speed_threshold:
+            lat_threshold, lon_threshold = utils.compute_coarse_box(radius, df_vehicle_street["lat"][i])
             first_sort_dict[i] = df_labels[(abs(df_vehicle_street["lon"][i]-df_labels["lon"]) < lon_threshold) &
                                            (abs(df_vehicle_street["lat"][i]-df_labels["lat"]) < lat_threshold)]
             indices_far = []
@@ -65,18 +63,14 @@ def compute_first_sort_dict(
 def compute_vehicle_type_dict(
     df_labels: pd.DataFrame,
     df_street: pd.DataFrame,
-    lon_threshold: float = 3e-05,
-    lat_threshold: float = 2e-05,
     speed_threshold: float = 7,
-    radius: float = 2,
+    radius: float = 5,
 ) -> dict[str, dict[int, pd.DataFrame]]:
     """Build nearby-label mappings for each supported vehicle type.
 
     Args:
         df_labels: DataFrame containing manual label points.
         df_street: DataFrame containing all street measurements.
-        lon_threshold: Maximum absolute longitude difference for the coarse filter.
-        lat_threshold: Maximum absolute latitude difference for the coarse filter.
         speed_threshold: Minimum street-measurement speed to consider.
         radius: Maximum accepted point-to-point distance in metres.
 
@@ -87,7 +81,6 @@ def compute_vehicle_type_dict(
 
     for vehicle_type in ["Car", "Bike", "E-Scooter"]:
         vehicle_type_dict[vehicle_type] = compute_first_sort_dict(df_labels, sort_vehicle_types(df_street, vehicle_type),
-                                                                  lon_threshold=lon_threshold, lat_threshold=lat_threshold, 
                                                                   speed_threshold=speed_threshold,
                                                                   radius=radius)
         

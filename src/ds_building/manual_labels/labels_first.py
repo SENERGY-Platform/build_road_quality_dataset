@@ -14,22 +14,18 @@ from src.ds_building.manual_labels import utils
 def compute_first_sort_dict(
     df_labels: pd.DataFrame,
     df_street: pd.DataFrame,
-    lon_threshold: float = 8e-05,
-    lat_threshold: float = 6e-05,
     speed_threshold: float = 7,
-    radius: float = 2,
+    radius: float = 5,
 ) -> dict[int, pd.DataFrame]:
     """Find nearby street rows for each manual label point.
 
-    Applies a coarse longitude/latitude bounding-box filter, requires street rows
-    to exceed `speed_threshold`, and then removes candidates farther than `radius`
-    metres by geodesic distance.
+    Applies a coarse longitude/latitude bounding-box filter sized to `radius`,
+    requires street rows to exceed `speed_threshold`, and then removes candidates
+    farther than `radius` metres by geodesic distance.
 
     Args:
         df_labels: DataFrame containing manual label points with `lat` and `lon`.
         df_street: DataFrame containing street measurements with coordinates and speed.
-        lon_threshold: Maximum absolute longitude difference for the coarse filter.
-        lat_threshold: Maximum absolute latitude difference for the coarse filter.
         speed_threshold: Minimum speed required for a street row to be considered.
         radius: Maximum accepted point-to-point distance in metres.
 
@@ -38,6 +34,7 @@ def compute_first_sort_dict(
     """
     first_sort_dict = {}
     for i in range(len(df_labels)):
+        lat_threshold, lon_threshold = utils.compute_coarse_box(radius, df_labels["lat"][i])
         first_sort_dict[i] = df_street[(abs(df_street["lon"]-df_labels["lon"][i]) < lon_threshold) &
                                        (abs(df_street["lat"]-df_labels["lat"][i]) < lat_threshold) & 
                                        (df_street["speed"] > speed_threshold)]

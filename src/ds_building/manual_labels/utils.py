@@ -2,8 +2,14 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from geopy import distance
+
+# Lower bounds for metres per degree on WGS84, so the coarse box never
+# undercuts the geodesic radius check that follows it.
+METRES_PER_DEGREE_LAT = 110_574.0
+METRES_PER_DEGREE_LON_AT_EQUATOR = 111_319.0
 
 def load_data(path: str) -> pd.DataFrame:
     """Load one CSV file or all CSV files in a directory.
@@ -25,6 +31,25 @@ def load_data(path: str) -> pd.DataFrame:
 
     df["timestamp"] = pd.to_datetime(df["timestamp"],format="ISO8601")
     return df
+
+
+def compute_coarse_box(radius: float, lat: float) -> tuple[float, float]:
+    """Return latitude/longitude half-widths in degrees covering `radius` metres.
+
+    The box is used as a cheap prefilter before the exact geodesic distance
+    check, so it must be at least as large as the radius in every direction.
+    The longitude half-width grows with latitude.
+
+    Args:
+        radius: Matching radius in metres.
+        lat: Latitude of the box centre in degrees.
+
+    Returns:
+        Tuple of `(lat_threshold, lon_threshold)` in degrees.
+    """
+    lat_threshold = radius / METRES_PER_DEGREE_LAT
+    lon_threshold = radius / (METRES_PER_DEGREE_LON_AT_EQUATOR * np.cos(np.radians(lat)))
+    return lat_threshold, lon_threshold
 
 
 def compute_distance(lat_1: float, lon_1: float, lat_2: float, lon_2: float) -> distance.Distance:
