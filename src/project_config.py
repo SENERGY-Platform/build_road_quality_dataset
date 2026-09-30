@@ -17,3 +17,11 @@ information. Slow driving above it, for example over very bad road sections, is
 kept. The same value applies to manual and OSM data so that models trained on one
 source and evaluated on the other see the same speed range.
 """
+
+VEHICLE_TYPE: Final[str] = "Car"
+"""Vehicle type whose street measurements are used for manual and OSM datasets.
+
+Manual labels were collected from a car, so manual datasets and the manual test
+set contain car measurements only. OSM datasets use the same vehicle type so that
+OSM training data comes from the same vibration domain as the evaluation data.
+"""

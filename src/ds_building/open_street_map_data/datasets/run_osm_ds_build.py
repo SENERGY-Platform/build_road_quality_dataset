@@ -13,7 +13,7 @@ import pandas as pd
 from src.ds_building.open_street_map_data.datasets.combination_mappings import calc_save_combination_scenarios
 from src.ds_building.open_street_map_data.datasets.smoothness_mappings import calc_smoothness_scenarios
 from src.ds_building.open_street_map_data.datasets.surface_mappings import calc_surface_scenarios
-from src.project_config import MIN_SPEED_KMH
+from src.project_config import MIN_SPEED_KMH, VEHICLE_TYPE
 
 
 def clean_labeled_locations(df: pd.DataFrame) -> pd.DataFrame:
@@ -92,11 +92,13 @@ def join_labels_to_streets(
     read_dir_street: str,
     out_dir: str,
     min_speed_threshold: float = MIN_SPEED_KMH,
+    vehicle_type: str = VEHICLE_TYPE,
 ) -> None:
     """Join per-file label datasets onto a combined street dataset and save per label file.
 
-    Concatenates all street CSV files in `read_dir_street` into one DataFrame, then
-    for each label parquet in `read_dir_labels` performs a left join on (`lat`, `lon`).
+    Concatenates all street CSV files in `read_dir_street` into one DataFrame and
+    keeps only rows of `vehicle_type` above `min_speed_threshold`. Then for each
+    label parquet in `read_dir_labels` performs a left join on (`lat`, `lon`).
     Rows with missing labels are dropped and the result is saved to `out_dir`.
 
     Args:
@@ -104,6 +106,7 @@ def join_labels_to_streets(
         read_dir_street: Directory containing street CSV files.
         out_dir: Output directory for joined datasets.
         min_speed_threshold: Minimum speed required for street rows.
+        vehicle_type: Vehicle type of the street rows to keep, such as `Car`.
 
     Returns:
         None.
@@ -116,7 +119,9 @@ def join_labels_to_streets(
         ignore_index=True,
     )
     streets["speed"] = pd.to_numeric(streets["speed"], errors="coerce")
-    streets = streets.loc[streets["speed"] > min_speed_threshold].copy()
+    streets = streets.loc[
+        (streets["speed"] > min_speed_threshold) & (streets["vehicleType"] == vehicle_type)
+    ].copy()
 
     label_files = [f for f in os.listdir(read_dir_labels) if f.lower().endswith(".parquet")]
     for f in sorted(label_files):

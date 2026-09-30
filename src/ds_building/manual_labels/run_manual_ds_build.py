@@ -14,7 +14,7 @@ import pandas as pd
 from src.ds_building.manual_labels import labels_first
 from src.ds_building.manual_labels import street_first
 from src.ds_building.manual_labels import utils
-from src.project_config import MIN_SPEED_KMH
+from src.project_config import MIN_SPEED_KMH, VEHICLE_TYPE
 
 
 @dataclass(frozen=False)
@@ -27,7 +27,7 @@ class ManualLabelsConfig:
 
     mapping_type: str = 'labels_first' # 'labels_first'/'street_first'
     mapping_procedure: str = "average" # "single", "average", "mostfrequent"
-    vehicle_type: str = "Car"
+    vehicle_type: str = VEHICLE_TYPE
 
     speed_threshold: float = MIN_SPEED_KMH
     time_window_s: int = 60

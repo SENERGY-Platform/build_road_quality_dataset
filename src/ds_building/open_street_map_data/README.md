@@ -118,7 +118,9 @@ uv run python -m src.ds_building.open_street_map_data.datasets.run_osm_ds_build
 
 This stage maps OSM labels into numeric road-quality labels using all configured
 smoothness, surface, and combination scenarios, then joins each label scenario
-onto the street-measurement CSVs.
+onto the street-measurement CSVs. Only street rows of the project-wide
+`VEHICLE_TYPE` (`Car`) with a speed above `MIN_SPEED_KMH` (both in
+`src/project_config.py`) are joined, the same rows the manual datasets use.
 
 Scenario definitions live in `datasets/mapping_strategy.py`:
 

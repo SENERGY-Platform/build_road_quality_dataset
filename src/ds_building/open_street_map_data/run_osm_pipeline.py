@@ -20,7 +20,7 @@ from src.ds_building.open_street_map_data.datasets.run_osm_ds_build import (
     build_mapped_labels,
     join_labels_to_streets,
 )
-from src.project_config import MIN_SPEED_KMH
+from src.project_config import MIN_SPEED_KMH, VEHICLE_TYPE
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,7 @@ class OSMBuildConfig:
 
     num_payload_files: int | None = None
     min_speed_threshold: float = MIN_SPEED_KMH
+    vehicle_type: str = VEHICLE_TYPE
 
 
 def run_pipeline(config: OSMBuildConfig) -> None:
@@ -79,6 +80,7 @@ def run_pipeline(config: OSMBuildConfig) -> None:
         config.street_raw_dir,
         config.osm_dataset_dir,
         min_speed_threshold=config.min_speed_threshold,
+        vehicle_type=config.vehicle_type,
     )
     log_msg("INFO", "OSM pipeline finished.")
 
@@ -121,6 +123,7 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=OSMBuildConfig.min_speed_threshold,
     )
+    parser.add_argument("--vehicle-type", default=OSMBuildConfig.vehicle_type)
     return parser.parse_args()
 
 
@@ -144,6 +147,7 @@ def main() -> None:
         max_minutes=args.max_minutes,
         num_payload_files=args.num_payload_files,
         min_speed_threshold=args.min_speed_threshold,
+        vehicle_type=args.vehicle_type,
     )
     run_pipeline(config)
 
