@@ -12,6 +12,11 @@ from src.model_building.data.data_test_cases import DataTestCase
 from src.model_building.data.model_data import ModelData
 from src.model_building.features.features import label_category_from_continuous
 
+# Columns that identify the sensor reading behind a row. Manual labels-first rows
+# repeat a reading once per matched label, and manual and OSM datasets are built
+# from the same raw readings, so splits must keep each reading on one side.
+READING_KEY_COLS = ["timestamp", "longitude", "latitude"]
+
 
 def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_state) -> ModelData:
     """Create train/test data for case A, using only manual labels for training."""
@@ -19,7 +24,7 @@ def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_
     if test_case.case_id.startswith('case_a') and (test_case.manual_ds is None or test_case.manual_ds_id is None):
         raise ValueError('Manual dataset is required for splitting model data for combination case A.')
 
-    x_train, y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config, random_state)
+    x_train, y_train, x_test, y_test, groups_train, _ = _split_manual_dataset(test_case, exp_config, random_state)
 
     return ModelData(
         test_case_id=test_case.case_id,
@@ -30,6 +35,7 @@ def _split_a_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_
         osm_train_y=pd.Series(),  # empty
         test_x=x_test,
         test_y=y_test,
+        manual_train_groups=groups_train,
     )
 
 
@@ -40,9 +46,10 @@ def _split_b_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_
                                                    test_case.manual_ds_id is None or test_case.manual_ds is None):
         raise ValueError('Both manual and osm datasets are required for splitting model data for combination case B.')
 
-    manual_x_train, manual_y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config, random_state)
-    osm_x_train, osm_y_train = _split_osm_by_manual_label_distribution(test_case, exp_config, manual_y_train,
-                                                                       random_state)
+    manual_x_train, manual_y_train, x_test, y_test, manual_groups_train, groups_test = _split_manual_dataset(
+        test_case, exp_config, random_state)
+    osm_x_train, osm_y_train, osm_groups_train = _split_osm_by_manual_label_distribution(
+        test_case, exp_config, manual_y_train, groups_test, random_state)
 
     return ModelData(
         test_case_id=test_case.case_id,
@@ -53,6 +60,8 @@ def _split_b_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_
         osm_train_y=osm_y_train,
         test_x=x_test,
         test_y=y_test,
+        manual_train_groups=manual_groups_train,
+        osm_train_groups=osm_groups_train,
     )
 
 
@@ -63,9 +72,9 @@ def _split_c_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_
                                                     test_case.manual_ds_id is None or test_case.manual_ds is None)):
         raise ValueError('Both manual and osm datasets are required for splitting model data for combination case C.')
 
-    manual_x_train, manual_y_train, x_test, y_test = _split_manual_dataset(test_case, exp_config, random_state)
-    osm_x_train, osm_y_train = _split_osm_by_manual_label_distribution(test_case, exp_config, manual_y_train,
-                                                                       random_state)
+    _, manual_y_train, x_test, y_test, _, groups_test = _split_manual_dataset(test_case, exp_config, random_state)
+    osm_x_train, osm_y_train, osm_groups_train = _split_osm_by_manual_label_distribution(
+        test_case, exp_config, manual_y_train, groups_test, random_state)
 
     return ModelData(
         test_case_id=test_case.case_id,
@@ -76,17 +85,53 @@ def _split_c_case(test_case: DataTestCase, exp_config: ExperimentConfig, random_
         osm_train_y=osm_y_train,
         test_x=x_test,
         test_y=y_test,
+        osm_train_groups=osm_groups_train,
     )
 
 
+def get_reading_ids(data_set: pd.DataFrame) -> pd.Series:
+    """Return an id per row identifying the sensor reading it was built from.
+
+    Rows built from the same reading share timestamp and coordinates, also across
+    manual and OSM datasets, so equal ids mean identical sensor features.
+    """
+    return pd.util.hash_pandas_object(data_set[READING_KEY_COLS], index=False)
+
+
+def _draw_group_ids(y: pd.Series, groups: pd.Series, test_size: float, random_state: int) -> pd.Index:
+    """Draw a `test_size` share of groups, stratified by each group's most common label category."""
+    group_classes = label_category_from_continuous(y).groupby(groups.to_numpy()).agg(lambda s: s.mode().iloc[0])
+    _, drawn_group_ids = train_test_split(group_classes.index, stratify=group_classes,
+                                          random_state=random_state, test_size=test_size)
+    return pd.Index(drawn_group_ids)
+
+
+def _split_by_group_ids(
+        x: pd.DataFrame,
+        y: pd.Series,
+        groups: pd.Series,
+        drawn_group_ids: pd.Index,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.Series]:
+    """Separate the rows of drawn groups from the remaining rows, keeping each group on one side.
+
+    Returns `(x_rest, x_drawn, y_rest, y_drawn, groups_rest, groups_drawn)`; empty
+    inputs give empty outputs.
+    """
+    is_drawn = groups.isin(drawn_group_ids)
+    return x[~is_drawn], x[is_drawn], y[~is_drawn], y[is_drawn], groups[~is_drawn], groups[is_drawn]
+
+
 def _split_manual_dataset(test_case: DataTestCase, exp_config: ExperimentConfig, random_state):
-    """Split a manual dataset into stratified train and test feature/label sets."""
+    """Split a manual dataset into stratified train and test sets grouped by sensor reading.
+
+    `test_set_percentage` is the share of readings drawn into the test set.
+    """
     features_df, label_s = _split_features_label(test_case.manual_ds, exp_config.label_column, exp_config.features)
-    y_classes = label_category_from_continuous(label_s)
-    x_train, x_test, y_train, y_test = train_test_split(features_df, label_s,
-                                                        stratify=y_classes, random_state=random_state,
-                                                        test_size=exp_config.test_set_percentage)
-    return x_train, y_train, x_test, y_test
+    groups = get_reading_ids(test_case.manual_ds)
+    test_group_ids = _draw_group_ids(label_s, groups, exp_config.test_set_percentage, random_state)
+    x_train, x_test, y_train, y_test, groups_train, groups_test = _split_by_group_ids(
+        features_df, label_s, groups, test_group_ids)
+    return x_train, y_train, x_test, y_test, groups_train, groups_test
 
 
 def _split_features_label(data_set: pd.DataFrame, label_column: str, features: list[str]) -> tuple[
@@ -133,10 +178,17 @@ def _draw_stratified_osm_sample(
 
 
 def _split_osm_by_manual_label_distribution(test_case: DataTestCase, exp_config: ExperimentConfig,
-                                            manual_train_y: pd.Series, random_state: int = 42) \
-        -> tuple[pd.DataFrame, pd.Series]:
-    """Sample OSM training data with the same categorical label distribution as manual training labels."""
+                                            manual_train_y: pd.Series, manual_test_groups: pd.Series,
+                                            random_state: int = 42) \
+        -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """Sample OSM training data with the same categorical label distribution as manual training labels.
+
+    OSM rows built from a sensor reading that is in the manual test set are excluded
+    first, so the model never trains on the exact features it is tested on.
+    """
     osm_df = test_case.osm_ds.copy()
+    osm_df['reading_id'] = get_reading_ids(osm_df)
+    osm_df = osm_df.loc[~osm_df['reading_id'].isin(manual_test_groups)].copy()
     osm_df['label_str'] = label_category_from_continuous(osm_df['label'])
     train_sample_num = _calc_osm_train_size(test_case, exp_config, len(manual_train_y.index))
     target_distribution = _get_series_distribution(label_category_from_continuous(manual_train_y))
@@ -148,7 +200,7 @@ def _split_osm_by_manual_label_distribution(test_case: DataTestCase, exp_config:
         random_state=random_state,
     )
     features_df, label_s = _split_features_label(osm_train, exp_config.label_column, exp_config.features)
-    return features_df, label_s
+    return features_df, label_s, osm_train['reading_id']
 
 
 def _calc_osm_train_size(test_case: DataTestCase, exp_config: ExperimentConfig, manual_train_len: int) -> int:
@@ -172,43 +224,71 @@ def split_data_for_test_case(test_case: DataTestCase, experiment_config: Experim
         raise ValueError('Unknown test case type')
 
 
-def _split_train_validation(
-        train_x: pd.DataFrame,
-        train_y: pd.Series,
+def _groups_or_row_ids(train_y: pd.Series, train_groups: pd.Series, source_name: str) -> pd.Series:
+    """Return reading ids, or stable source-prefixed row ids when no groups exist."""
+    if train_y.empty or not train_groups.empty:
+        return train_groups
+    return pd.Series(
+        [f"{source_name}_{i}" for i in range(len(train_y.index))],
+        index=train_y.index,
+    )
+
+
+def _get_validation_group_ids(
+        manual_train_y: pd.Series,
+        manual_train_groups: pd.Series,
+        osm_train_y: pd.Series,
+        osm_train_groups: pd.Series,
         model_config: ANNModelConfig,
         random_state: int,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """Split a train set into train/validation sets, preserving empty inputs."""
-    if train_x.empty or train_y.empty:
-        return train_x.copy(), train_x.copy(), train_y.copy(), train_y.copy()
+) -> pd.Index:
+    """Choose validation reading ids for all training sources, manual readings first.
 
-    train_y_classes = label_category_from_continuous(train_y)
-    try:
-        x_train, x_val, y_train, y_val = train_test_split(train_x, train_y,
-                                                          stratify=train_y_classes,
-                                                          random_state=random_state,
-                                                          test_size=model_config.val_set_percentage)
-    except Exception as e:
-        warnings.warn(f"Train validation split didn't work, returning empty validation set for now. {e.args[0]}")
-        return train_x.copy(), train_x.copy().iloc[0:0], train_y.copy(), train_y.copy().iloc[0:0]
-    return x_train, x_val, y_train, y_val
+    Validation readings are drawn from the manual training readings, stratified by
+    manual labels, so manual validation mirrors the manual test split. OSM readings
+    that are not in the manual training data are drawn separately, stratified by
+    OSM labels, so OSM pretraining keeps a validation set of the same share. The
+    returned ids apply to both sources, which keeps a shared reading on one side.
+    """
+    validation_group_id_parts = []
+    if not manual_train_y.empty:
+        validation_group_id_parts.append(_draw_group_ids(
+            manual_train_y, manual_train_groups, model_config.val_set_percentage, random_state))
+    if not osm_train_y.empty:
+        is_osm_only = ~osm_train_groups.isin(manual_train_groups)
+        if is_osm_only.any():
+            validation_group_id_parts.append(_draw_group_ids(
+                osm_train_y[is_osm_only], osm_train_groups[is_osm_only],
+                model_config.val_set_percentage, random_state))
+    if not validation_group_id_parts:
+        return pd.Index([])
+    return validation_group_id_parts[0].append(validation_group_id_parts[1:])
 
 
 def split_model_data_for_validation(model_data: ModelData, model_config: ANNModelConfig, random_state=42) -> ModelData:
     """Returns a new model data object containing updated training and new validation data created by the split of the old training data.
     Assumes pre-regulated sample distributions and propagates these through the labels in the val split."""
-    manual_train_x, manual_val_x, manual_train_y, manual_val_y = _split_train_validation(model_data.manual_train_x,
-                                                                                         model_data.manual_train_y,
-                                                                                         model_config, random_state)
-    osm_train_x, osm_val_x, osm_train_y, osm_val_y = _split_train_validation(model_data.osm_train_x,
-                                                                             model_data.osm_train_y,
-                                                                             model_config, random_state)
+    manual_groups = _groups_or_row_ids(model_data.manual_train_y, model_data.manual_train_groups, "manual")
+    osm_groups = _groups_or_row_ids(model_data.osm_train_y, model_data.osm_train_groups, "osm")
+    try:
+        validation_group_ids = _get_validation_group_ids(
+            model_data.manual_train_y, manual_groups, model_data.osm_train_y, osm_groups, model_config, random_state)
+    except Exception as e:
+        warnings.warn(f"Train validation split didn't work, returning empty validation set for now. {e.args[0]}")
+        validation_group_ids = pd.Index([])
+
+    manual_train_x, manual_val_x, manual_train_y, manual_val_y, manual_train_groups, _ = _split_by_group_ids(
+        model_data.manual_train_x, model_data.manual_train_y, manual_groups, validation_group_ids)
+    osm_train_x, osm_val_x, osm_train_y, osm_val_y, osm_train_groups, _ = _split_by_group_ids(
+        model_data.osm_train_x, model_data.osm_train_y, osm_groups, validation_group_ids)
     return replace(
         model_data,
         manual_train_x=manual_train_x,
         manual_train_y=manual_train_y,
         osm_train_x=osm_train_x,
         osm_train_y=osm_train_y,
+        manual_train_groups=manual_train_groups,
+        osm_train_groups=osm_train_groups,
         manual_val_x=manual_val_x,
         manual_val_y=manual_val_y,
         osm_val_x=osm_val_x,
@@ -218,7 +298,7 @@ def split_model_data_for_validation(model_data: ModelData, model_config: ANNMode
 
 def build_stratified_shuffle_split_datasets(test_case: DataTestCase, experiment_config: ExperimentConfig) -> list[
     ModelData]:
-    """Build repeated stratified train/test splits for one test case."""
+    """Build repeated stratified train/test splits, grouped by sensor reading, for one test case."""
     model_data_cases: list[ModelData] = []
     for k in range(experiment_config.cross_validation_k):
         model_data_cases.append(split_data_for_test_case(test_case, experiment_config, random_state=k))

@@ -42,6 +42,11 @@ class ModelData:
     osm_val_x: pd.DataFrame = field(default_factory=pd.DataFrame)
     osm_val_y: pd.Series = field(default_factory=pd.Series)
 
+    # sensor-reading ids of the training rows, aligned by index; keep all rows of
+    # one reading on the same side when the training data is split again
+    manual_train_groups: pd.Series = field(default_factory=pd.Series)
+    osm_train_groups: pd.Series = field(default_factory=pd.Series)
+
     @staticmethod
     def _combine_and_shuffle_xy(
             x_parts: list[pd.DataFrame],

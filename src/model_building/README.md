@@ -116,11 +116,13 @@ The held-out test set always comes from the manual labelled dataset:
 - Case B trains on the manual train split plus sampled OSM training data, then tests on the manual test split.
 - Case C trains on sampled OSM training data, then tests on the manual test split.
 
-Manual data is split repeatedly with `train_test_split`, using `test_set_percentage` from `ExperimentConfig`. Each split is stratified by discrete label category and uses a different `random_state`.
+Manual data is split repeatedly, using `test_set_percentage` from `ExperimentConfig`. Each split is stratified by discrete label category and uses a different `random_state`.
 
-For Case B and Case C, OSM training rows are sampled to match the manual training label distribution. By default, the OSM training sample size matches the manual training size. Set `all_osm_data=True` to request all available OSM rows for the configured case type, subject to the available class distribution. For Case A, set `all_osm_data=None`.
+Splits are grouped by sensor reading. A reading is identified by its `timestamp`, `longitude`, and `latitude` (`get_reading_ids`). Several rows can come from one reading: labels-first `single` emits a reading once per matched label, labels-first `average` rows with identical candidate sets are identical, and OSM `surf3`/`c4` scenarios repeat a reading with alternative labels. All rows of one reading always land on the same side of a split, so the model is never tested on features it was trained on. `test_set_percentage` is therefore the share of readings; groups are stratified by their most common label category.
 
-Models that need validation data split validation rows from the training data only. The held-out manual test set is not used for validation.
+For Case B and Case C, OSM training rows are sampled to match the manual training label distribution. Manual and OSM datasets are built from the same raw readings, so OSM rows whose reading is in the manual test set are excluded before sampling, as osm is not contributing to test sets. By default, the OSM training sample size matches the manual training size. Set `all_osm_data=True` to request all available OSM rows for the configured case type, subject to the available class distribution. For Case A, set `all_osm_data=None`.
+
+Models that need validation data split validation rows from the training data only, grouped by sensor reading in the same way. Validation readings are drawn from the manual training readings first, stratified by manual labels, so manual validation mirrors the manual test split. OSM readings that are not in the manual training data are drawn separately for OSM validation. The chosen readings apply to both sources, so a reading shared by both sources is never in one source's training data and the other source's validation data. The held-out manual test set is also not used for validation.
 
 ## Model Training
 
