@@ -1,4 +1,4 @@
-EXPERIMENT_NAME = "road_quality_experiment_1"
+EXPERIMENT_NAME = "road_quality_evaluation_1"
 LOG_TO_MLFLOW = True
 RUN_ON_RAY = True
 
@@ -7,7 +7,7 @@ MANUAL_DS_DIR = "data/molewa/datasets"
 FEATURE_DS_DIR = "data/molewa/model_building/feature_ds"
 SKIP_FEATURE_BUILD_IF_EXISTS = True
 
-DS_VERSION = "v1.0"
+DS_VERSION = "v2.0"
 FEATURE_SET_NAME = "all_features"
 FEATURES = ["vibration_x", "vibration_y", "vibration_z", "speed",
             "vibration_magnitude", "score_mild", "score_standard", "score_strict"]
