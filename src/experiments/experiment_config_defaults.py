@@ -8,9 +8,8 @@ FEATURE_DS_DIR = "data/molewa/model_building/feature_ds"
 SKIP_FEATURE_BUILD_IF_EXISTS = True
 
 DS_VERSION = "v2.0"
-FEATURE_SET_NAME = "all_features"
-FEATURES = ["vibration_x", "vibration_y", "vibration_z", "speed",
-            "vibration_magnitude", "score_mild", "score_standard", "score_strict"]
+FEATURE_SET_NAME = "speed_and_magnitude"
+FEATURES = [ "speed", "vibration_magnitude"] # "vibration_x", "vibration_y", "vibration_z", "score_mild", "score_standard", "score_strict"
 
 CROSS_VALIDATION_K = 10
 TEST_SET_PERCENTAGE = 0.3
