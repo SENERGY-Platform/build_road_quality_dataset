@@ -173,6 +173,7 @@ def run_model_optimisation(
             experiment_name=base_experiment_config.experiment_name,
             model=base_experiment_config.model,
             dataset_case_group=base_experiment_config.get_ds_case_group(),
+            feature_set_name=base_experiment_config.feature_set_name,
         ).start_parent_run()
 
     run_results: list[OptimisationResult] = []

@@ -58,14 +58,16 @@ class MlflowLogger:
         experiment_name: str,
         tracking_uri: str,
         model: str,
-        dataset_case_group: str
+        dataset_case_group: str,
+        feature_set_name: str,
     ):
-        """Initialise an MLflow logger for one model and dataset-case group."""
+        """Initialise an MLflow logger for one model, dataset-case group, and feature set."""
         self.experiment_name = experiment_name
         self.tracking_uri = tracking_uri
         self.parent_run_config: ParentRunConfig = ParentRunConfig(
             model_name=model,
             dataset_case_group=dataset_case_group,
+            feature_set_name=feature_set_name,
         )
 
         self.active_parent_run = None
@@ -85,11 +87,12 @@ class MlflowLogger:
 
         Example
         -------
-        xgboost__case_b_osm_allpoints
+        xgboost__case_b_osm_allpoints__all_features
 
         Parent tags:
             model = xgboost
             dataset_combination = case_b_osm_allpoints
+            feature_set_name = all_features
             run_type = parent
 
 

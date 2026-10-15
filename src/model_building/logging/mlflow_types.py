@@ -34,10 +34,10 @@ class ParentRunConfig:
     """
     Configuration for one mlflow parent/grouping run.
     Example parent:
-        xgboost__case_b_osm_allpoints
+        xgboost__case_b_osm_allpoints__all_features
 
     Represents one:
-        model x dataset-combination
+        model x dataset-combination x feature set
 
     The parent groups multiple hyperparameter trials and,
     after all trials finish, can store information about the
@@ -46,7 +46,8 @@ class ParentRunConfig:
 
     model_name: str             # i.e. xgboost, ridge, ann
     dataset_case_group: str     # i.e. "case_a_manual_only", "case_b_osm_allpoints", "case_b_osm_limitedpoints"
-    run_name: str               # i.e. {model}__{dataset_case_group}
+    feature_set_name: str       # i.e. "all_features", "speed_magnitude"
+    run_name: str               # i.e. {model}__{dataset_case_group}__{feature_set_name}
     run_type: str               # parent
 
     mlflow_experiment_id: Optional[str]     # gets initialised once mlflow run is started and id was created
@@ -65,11 +66,12 @@ class ParentRunConfig:
     best_trial_model: Any | None
     best_trial_model_data: ModelData | None
 
-    def __init__(self, model_name: str, dataset_case_group: str):
-        """Initialise parent-run metadata for a model and dataset-case group."""
+    def __init__(self, model_name: str, dataset_case_group: str, feature_set_name: str):
+        """Initialise parent-run metadata for a model, dataset-case group, and feature set."""
         self.model_name = model_name
         self.dataset_case_group = dataset_case_group
-        self.run_name = f"{model_name}__{dataset_case_group}"
+        self.feature_set_name = feature_set_name
+        self.run_name = f"{model_name}__{dataset_case_group}__{feature_set_name}"
 
         # parameters that get filled once the run is started and later finished
         self.mlflow_experiment_id = None
@@ -89,6 +91,7 @@ class ParentRunConfig:
         return {
             "model": self.model_name,
             "dataset_case_group": self.dataset_case_group,
+            "feature_set_name": self.feature_set_name,
             "run_type": self.run_type,
             "run_started_at_utc": run_started_at_utc,
         }
@@ -221,6 +224,7 @@ class TrialRunConfig:
         return {
             "model": self.model_name,
             "dataset_case_group": self.dataset_case_group,
+            "feature_set_name": self.feature_set_name,
             "test_case_id": self.test_case_id,
             "parameter_set_id": str(self.parameter_set_id),
             "trial_number": str(self.trial_number),
